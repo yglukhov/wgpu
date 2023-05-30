@@ -1,31 +1,86 @@
 import wgpu
 import yasync
 
+type
+  VertexAttr = object
+    x, y, z: float32
+    r, g, b, a: uint8
+
+const vertexData = block:
+  template va(xx, yy, zz: float32, rr, gg, bb, aa: uint8): VertexAttr =
+    VertexAttr(x: xx, y: yy, z: zz, r: rr, g: gg, b: bb, a: aa)
+
+  template va(x, y, z: float32, r, g, b: uint8): VertexAttr =
+    va(x, y, z, r, g, b, 255)
+
+  template va(x, y: float32, r, g, b: uint8): VertexAttr =
+    va(x, y, 0.0, r, g, b)
+
+  [  # x, y,             r, g, b
+    va(-0.5, -0.5,       255, 0, 0),
+    va(0.5, -0.5,        0, 255, 0),
+    va(0.0, 0.5,         0, 0, 255),
+  ]
+
 const shaderCode = """
+struct VertexInput {
+  @location(0) position: vec3<f32>,
+  @location(1) color: vec4<u32>,
+};
+
+struct VertexOutput {
+  @builtin(position) position: vec4<f32>,
+  @location(0) color: vec4<f32>,
+};
+
 @vertex
-fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position) vec4<f32> {
-  var p = vec2(0.0, 0.0);
-  if (in_vertex_index == 0u) {
-    p = vec2(-0.5, -0.5);
-  } else if (in_vertex_index == 1u) {
-    p = vec2(0.5, -0.5);
-  } else {
-    p = vec2(0.0, 0.5);
-  }
-  return vec4(p, 0.0, 1.0);
+fn vs_main(in: VertexInput) -> VertexOutput {
+  var o: VertexOutput;
+  o.position = vec4(in.position, 1.0);
+  o.color = vec4<f32>(in.color) / 255.0;
+  return o;
 }
+
 @fragment
-fn fs_main() -> @location(0) vec4<f32> {
-  return vec4(0.0, 0.4, 1.0, 1.0);
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+  return in.color;
 }
 """
 
+proc createBuffer(d: Device, data: pointer, size: int): Buffer =
+  var desc: BufferDescriptor
+  desc.size = size.uint64
+  desc.usage = {buCopyDst, buVertex}
+  result = d.createBuffer(desc)
+  d.getQueue().writeBuffer(result, 0, data, size)
+
+proc createBuffer[T](d: Device, data: openarray[T]): Buffer {.inline.} =
+  d.createBuffer(addr data, sizeof(T) * data.len)
+
 proc createPipeline(d: Device, swapChainFormat: TextureFormat): RenderPipeline =
   let shaderModule = d.createShaderModule(shaderCode)
+  assert(not shaderModule.isNil)
+
+  var va: array[2, VertexAttribute]
+  va[0].shaderLocation = 0
+  va[0].format = vfFloat32x3
+  va[0].offset = 0
+
+  va[1].shaderLocation = 1
+  va[1].format = vfUint8x4
+  va[1].offset = sizeof(float32) * 3
+
+  var vbl: VertexBufferLayout
+  vbl.arrayStride = sizeof(VertexAttr).uint64
+  vbl.attributeCount = 2
+  vbl.attributes = addr va[0]
 
   var pipelineDesc: RenderPipelineDescriptor
   pipelineDesc.vertex.module = shaderModule
   pipelineDesc.vertex.entryPoint = "vs_main"
+  pipelineDesc.vertex.bufferCount = 1
+  pipelineDesc.vertex.buffers = addr vbl
+
   pipelineDesc.primitive.topology = ptTriangleList
   pipelineDesc.primitive.stripIndexFormat = ifUndefined
   pipelineDesc.primitive.frontFace = ffCCW
@@ -58,7 +113,7 @@ proc createPipeline(d: Device, swapChainFormat: TextureFormat): RenderPipeline =
 
   d.createRenderPipeline(pipelineDesc)
 
-proc renderFrame(d: Device, pipeline: RenderPipeline, textureView: TextureView) =
+proc renderFrame(d: Device, pipeline: RenderPipeline, textureView: TextureView, buffer: Buffer) =
   let encoder = d.createCommandEncoder()
 
   var renderPassColorAttachment: RenderPassColorAttachment
@@ -72,7 +127,8 @@ proc renderFrame(d: Device, pipeline: RenderPipeline, textureView: TextureView) 
   renderPassDesc.colorAttachments = addr renderPassColorAttachment
   let renderPass = encoder.beginRenderPass(renderPassDesc)
   renderPass.setPipeline(pipeline)
-  renderPass.draw(3, 1, 0, 0)
+  renderPass.setVertexBuffer(0, buffer, 0, vertexData.len * sizeof(vertexData[0]))
+  renderPass.draw(vertexData.len.uint32, 1, 0, 0)
   renderPass.finish()
 
   d.getQueue().submit(encoder.finish())
@@ -112,8 +168,10 @@ when defined(wasm):
     let format = tfBGRA8UnormSrgb
     ctx.configure(d, format)
     let pipeline = createPipeline(d, format)
+    assert(not pipeline.isNil)
+    let buffer = createBuffer(d, vertexData)
     let textureView = ctx.getCurrentTexture().createView()
-    renderFrame(d, pipeline, textureView)
+    renderFrame(d, pipeline, textureView, buffer)
 
   proc main() {.async.} =
     let i = createInstance()
@@ -159,7 +217,7 @@ else:
     swapChainDesc.height = 480
     swapChainDesc.format = swapChainFormat
     swapChainDesc.usage = {renderAttachment}
-    swapChainDesc.presentMode = pmFifo
+    swapChainDesc.presentMode = pmImmediate
     d.createSwapChain(surface, swapChainDesc)
 
   proc mainLoop(a: Adapter, d: Device, surface: Surface, w: glfw.Window) =
@@ -169,8 +227,9 @@ else:
     )
 
     let swapChainFormat = surface.getPreferredFormat(a)
-    let swapchain = createSwapchain(d, surface, swapchainFormat)
+    let swapChain = createSwapchain(d, surface, swapchainFormat)
     let pipeline = createPipeline(d, swapChainFormat)
+    let buffer = createBuffer(d, vertexData)
 
     while windowShouldClose(w) == 0:
       pollEvents()
@@ -179,7 +238,7 @@ else:
         echo "Error getting next swap chain texture"
         break
 
-      renderFrame(d, pipeline, nextTexture)
+      renderFrame(d, pipeline, nextTexture, buffer)
       wgpuTextureViewDrop(nextTexture)
       swapChain.present()
 

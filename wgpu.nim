@@ -1,6 +1,7 @@
 import yasync
 when defined(wasm):
   import wasmrt
+  export wasmrt.isNil
 
   type
     Adapter* = object of JSObj
@@ -457,18 +458,18 @@ type
     vsmVertex = 0x00000000,
     vsmInstance = 0x00000001,
 
-  # BufferUsage*  {.size: sizeof(cint).} = enum
-  #   none = 0x00000000,
-  #   mapRead = 0x00000001,
-  #   mapWrite = 0x00000002,
-  #   copySrc = 0x00000004,
-  #   copyDst = 0x00000008,
-  #   index = 0x00000010,
-  #   vertex = 0x00000020,
-  #   uniform = 0x00000040,
-  #   storage = 0x00000080,
-  #   indirect = 0x00000100,
-  #   queryResolve = 0x00000200,
+  BufferUsage* {.size: sizeof(cint).} = enum
+    # none = 0x00000000,
+    buMapRead# = 0x00000001,
+    buMapWrite# = 0x00000002,
+    buCopySrc# = 0x00000004,
+    buCopyDst# = 0x00000008,
+    buIndex# = 0x00000010,
+    buVertex# = 0x00000020,
+    buUniform# = 0x00000040,
+    buStorage# = 0x00000080,
+    buIndirect# = 0x00000100,
+    buQueryResolve# = 0x00000200,
 
   ColorWriteMask* {.size: sizeof(cint).} = enum
     # None = 0x00000000,
@@ -604,6 +605,13 @@ type
     srcFactor*: BlendFactor
     dstFactor*: BlendFactor
 
+  BufferDescriptor* = object
+    nextInChain*: ptr ChainedStruct
+    label*: cstring # nullable
+    usage*: set[BufferUsage]
+    size*: uint64
+    mappedAtCreation*: bool
+
   Color* = object
     r*: float
     g*: float
@@ -728,6 +736,7 @@ const
 when defined(wasm):
   proc init() {.importwasmraw: """
 window._nimwca = [,"r8unorm","r8snorm","r8uint","r8sint","r16uint","r16sint","r16float","rg8unorm","rg8snorm","rg8uint","rg8sint","r32uint","r32sint","r32float","rg16uint","rg16sint","rg16float","rgba8unorm","rgba8unorm-srgb","rgba8snorm","rgba8uint","rgba8sint","bgra8unorm","bgra8unorm-srgb","rgb9e5ufloat","rgb10a2unorm","rg11b10ufloat","rg32uint","rg32sint","rg32float","rgba16uint","rgba16sint","rgba16float","rgba32uint","rgba32sint","rgba32float","stencil8","depth16unorm","depth24plus","depth24plus-stencil8","depth32float","depth32float-stencil8","bc1-rgba-unorm","bc1-rgba-unorm-srgb","bc2-rgba-unorm","bc2-rgba-unorm-srgb","bc3-rgba-unorm","bc3-rgba-unorm-srgb","bc4-r-unorm","bc4-r-snorm","bc5-rg-unorm","bc5-rg-snorm","bc6h-rgb-ufloat","bc6h-rgb-float","bc7-rgba-unorm","bc7-rgba-unorm-srgb","etc2-rgb8unorm","etc2-rgb8unorm-srgb","etc2-rgb8a1unorm","etc2-rgb8a1unorm-srgb","etc2-rgba8unorm","etc2-rgba8unorm-srgb","eac-r11unorm","eac-r11snorm","eac-rg11unorm","eac-rg11snorm","astc-4x4-unorm","astc-4x4-unorm-srgb","astc-5x4-unorm","astc-5x4-unorm-srgb","astc-5x5-unorm","astc-5x5-unorm-srgb","astc-6x5-unorm","astc-6x5-unorm-srgb","astc-6x6-unorm","astc-6x6-unorm-srgb","astc-8x5-unorm","astc-8x5-unorm-srgb","astc-8x6-unorm","astc-8x6-unorm-srgb","astc-8x8-unorm","astc-8x8-unorm-srgb","astc-10x5-unorm","astc-10x5-unorm-srgb","astc-10x6-unorm","astc-10x6-unorm-srgb","astc-10x8-unorm","astc-10x8-unorm-srgb","astc-10x10-unorm","astc-10x10-unorm-srgb","astc-12x10-unorm","astc-12x10-unorm-srgb","astc-12x12-unorm","astc-12x12-unorm-srgb","uint8x2","uint8x4","sint8x2","sint8x4","unorm8x2","unorm8x4","snorm8x2","snorm8x4","uint16x2","uint16x4","sint16x2","sint16x4","unorm16x2","unorm16x4","snorm16x2","snorm16x4","float16x2","float16x4","float32","float32x2","float32x3","float32x4","uint32","uint32x2","uint32x3","uint32x4","sint32","sint32x2","sint32x3","sint32x4"];
+window._nimwcb = [,"uint8x2", "uint8x4", "sint8x2", "sint8x4", "unorm8x2", "unorm8x4", "snorm8x2", "snorm8x4", "uint16x2", "uint16x4", "sint16x2", "sint16x4", "unorm16x2", "unorm16x4", "snorm16x2", "snorm16x4", "float16x2", "float16x4", "float32", "float32x2", "float32x3", "float32x4", "uint32", "uint32x2", "uint32x3", "uint32x4", "sint32", "sint32x2", "sint32x3", "sint32x4"];
 """.}
   init()
 elif defined(linux):
@@ -813,6 +822,16 @@ proc requestDevice*(adapter: Adapter, options: DeviceDescriptor): Future[Device]
 
 
 # Methods of Device
+when defined(wasm):
+  proc createBuffer(device: Device, usage: uint32, size: uint32, mappedAtCreation: bool): Buffer {.importwasmraw: """
+  return _nimok(_nimo[$0].createBuffer({usage: $1, size: $2, mappedAtCreation: $3}))
+  """.}
+  proc createBuffer*(device: Device, d: BufferDescriptor): Buffer {.inline.} =
+    createBuffer(device, cast[uint32](d.usage), d.size.uint32, d.mappedAtCreation)
+else:
+  proc wgpuDeviceCreateBuffer(device: Device, descriptor: ptr BufferDescriptor): Buffer {.w.}
+  proc createBuffer*(device: Device, descriptor: BufferDescriptor): Buffer {.inline.} =
+    wgpuDeviceCreateBuffer(device, addr descriptor)
 
 when defined(wasm):
   proc getQueue*(device: Device): Queue {.importwasmp: "queue".}
@@ -835,10 +854,13 @@ else:
 proc createCommandEncoder*(device: Device, descriptor: CommandEncoderDescriptor): CommandEncoder {.inline.} =
   wgpuDeviceCreateCommandEncoder(device, addr descriptor)
 
+template ptrArrayElem[T](p: ptr T, i: int): ptr T =
+  addr cast[ptr UncheckedArray[T]](p)[i]
+
 
 when defined(wasm):
-  proc createPipeline(device: Device, layout: PipelineLayout, vsModule: ShaderModule, vsEntry: cstring, fsState: JSObj): RenderPipeline {.importwasmp: """
-  createRenderPipeline({layout: _nimo[$1]||'auto', vertex: {module: _nimo[$2], entryPoint: _nimsj($3)}, fragment: _nimo[$4]})
+  proc createPipeline(device: Device, layout: PipelineLayout, vsModule: ShaderModule, vsEntry: cstring, buffers, fsState: JSObj): RenderPipeline {.importwasmp: """
+  createRenderPipeline({layout: _nimo[$1]||'auto', vertex: {module: _nimo[$2], entryPoint: _nimsj($3), buffers: _nimo[$4]}, fragment: _nimo[$5]||undefined})
   """.}
 
   proc makeFsState(m: ShaderModule, e: cstring, targets: JSObj): JSObj {.importwasmraw: """
@@ -848,18 +870,29 @@ when defined(wasm):
   proc makeJsArray(count: uint32): JSObj {.importwasmf: "new Array".}
 
   proc addTarget(t: JSObj, idx: int32, format: TextureFormat) {.importwasmraw: "_nimo[$0][$1] = {format: _nimwca[$2]}".}
+  proc addBufferLayout(t: JSObj, idx: int32, arrayStride: uint32, attrs: JSObj) {.importwasmraw: "_nimo[$0][$1] = {arrayStride: $2, attributes: _nimo[$3]}".}
+  proc addAttribute(t: JSObj, idx: int32, fmt, offset, shaderLoc: uint32) {.importwasmraw: "_nimo[$0][$1] = {format: _nimwcb[$2], offset: $3, shaderLocation: $4}".}
 
   proc wgpuDeviceCreateRenderPipeline(device: Device, d: ptr RenderPipelineDescriptor): RenderPipeline =
     var fsState: JSObj
     let f = d.fragment
     if not f.isNil:
       let targets = makeJsArray(f.targetCount)
-      let tt = cast[ptr UncheckedArray[ColorTargetState]](f.targets)
       for i in 0 ..< f.targetCount.int:
-        addTarget(targets, i.int32, tt[i].format)
+        let tt = ptrArrayElem(f.targets, i)
+        addTarget(targets, i.int32, tt.format)
 
       fsState = makeFsState(f.module, f.entryPoint, targets)
-    result = createPipeline(device, d.layout, d.vertex.module, d.vertex.entryPoint, fsState)
+    let buffers = makeJsArray(d.vertex.bufferCount)
+    for i in 0 ..< d.vertex.bufferCount.int:
+      let tt = ptrArrayElem(d.vertex.buffers, i)
+      let attributes = makeJsArray(tt.attributeCount)
+      for j in 0 ..< tt.attributeCount.int:
+        let aa = ptrArrayElem(tt.attributes, j)
+        addAttribute(attributes, j.int32, aa.format.uint32, aa.offset.uint32, aa.shaderLocation)
+      addBufferLayout(buffers, i.int32, tt.arrayStride.uint32, attributes)
+
+    result = createPipeline(device, d.layout, d.vertex.module, d.vertex.entryPoint, buffers, fsState)
 else:
   proc wgpuDeviceCreateSwapChain(device: Device, surface: Surface, descriptor: ptr SwapChainDescriptor): SwapChain {.w.}
   proc createSwapChain*(device: Device, surface: Surface, descriptor: SwapChainDescriptor): SwapChain {.inline.} =
@@ -915,7 +948,15 @@ else:
   proc submit*(queue: Queue, command: CommandBuffer) {.inline.} = wgpuQueueSubmit(queue, 1, addr command)
   proc submit*(queue: Queue, commands: openarray[CommandBuffer]) {.inline.} = submit(queue, commands.len, cast[ptr CommandBuffer](addr commands))
 
-# # WGPU_EXPORT void wgpuQueueWriteBuffer(WGPUQueue queue, WGPUBuffer buffer, uint64_t bufferOffset, void const * data, size_t size);
+when defined(wasm):
+  proc writeBuffer*(queue: Queue, buffer: Buffer, bufferOffset: int, data: pointer, size: int) {.importwasmraw: """
+  _nimo[$0].writeBuffer(_nimo[$1], $2, _nima.buffer, $3, $4)
+  """.}
+else:
+  proc wgpuQueueWriteBuffer(queue: Queue, buffer: Buffer, bufferOffset: uint64, data: pointer, size: csize_t) {.w.}
+  proc writeBuffer*(queue: Queue, buffer: Buffer, bufferOffset: int, data: pointer, size: int) {.inline.} =
+    wgpuQueueWriteBuffer(queue, buffer, bufferOffset.uint64, data, size.csize_t)
+
 # # WGPU_EXPORT void wgpuQueueWriteTexture(WGPUQueue queue, WGPUImageCopyTexture const * destination, void const * data, size_t dataSize, WGPUTextureDataLayout const * dataLayout, WGPUExtent3D const * writeSize);
 
 # Methods of CommandEncoder
@@ -1001,5 +1042,12 @@ else:
 
 # # WGPU_EXPORT void wgpuRenderPassEncoderSetScissorRect(WGPURenderPassEncoder renderPassEncoder, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
 # # WGPU_EXPORT void wgpuRenderPassEncoderSetStencilReference(WGPURenderPassEncoder renderPassEncoder, uint32_t reference);
-# # WGPU_EXPORT void wgpuRenderPassEncoderSetVertexBuffer(WGPURenderPassEncoder renderPassEncoder, uint32_t slot, WGPUBuffer buffer, uint64_t offset, uint64_t size);
+when defined(wasm):
+  proc setVertexBuffer(renderPassEncoder: RenderPassEncoder, slot: uint32, buffer: Buffer, offset, size: uint32) {.importwasmm.}
+  proc setVertexBuffer*(renderPassEncoder: RenderPassEncoder, slot: uint32, buffer: Buffer, offset, size: uint64) {.inline.} =
+    renderPassEncoder.setVertexBuffer(slot, buffer, offset.uint32, size.uint32)
+
+else:
+  proc setVertexBuffer*(renderPassEncoder: RenderPassEncoder, slot: uint32, buffer: Buffer, offset, size: uint64) {.w, importc: "wgpuRenderPassEncoderSetVertexBuffer".}
+
 # # WGPU_EXPORT void wgpuRenderPassEncoderSetViewport(WGPURenderPassEncoder renderPassEncoder, float x, float y, float width, float height, float minDepth, float maxDepth);
