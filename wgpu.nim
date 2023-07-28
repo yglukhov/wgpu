@@ -747,6 +747,8 @@ elif defined(linux):
 
 when defined(wasm):
   proc createInstance*(): Instance {.importwasmp: "navigator['gpu'] || null".}
+  proc getPreferredCanvasFormat*(i: Instance): TextureFormat {.importwasmraw: "return _nimwca.indexOf(_nimo[$0].getPreferredCanvasFormat())"}
+
 else:
   proc wgpuCreateInstance(descriptor: ptr InstanceDescriptor): Instance {.w.}
   proc createInstance*(): Instance {.inline.} =

@@ -159,13 +159,12 @@ when defined(wasm):
 
   proc createContext(): GPUCanvasContext =
     let doc = document()
-    let canvas = HTMLCanvasElement(doc.createElement("canvas"))
+    let canvas = doc.createElement("canvas").to(HTMLCanvasElement)
     doc.body.append(canvas)
-    GPUCanvasContext(canvas.getContext("webgpu"))
+    canvas.getContext("webgpu").to(GPUCanvasContext)
 
-  proc mainLoop(d: Device) =
+  proc mainLoop(d: Device, format: TextureFormat) =
     let ctx = createContext()
-    let format = tfBGRA8UnormSrgb
     ctx.configure(d, format)
     let pipeline = createPipeline(d, format)
     assert(not pipeline.isNil)
@@ -182,7 +181,8 @@ when defined(wasm):
     let a = await i.requestAdapter(options)
     var deviceOpts: DeviceDescriptor
     let d = await a.requestDevice(deviceOpts)
-    mainLoop(d)
+    let format = i.getPreferredCanvasFormat()
+    mainLoop(d, format)
 
   discard main()
 
