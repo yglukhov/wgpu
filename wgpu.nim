@@ -735,8 +735,18 @@ const
 
 when defined(wasm):
   proc init() {.importwasmraw: """
-window._nimwca = [,"r8unorm","r8snorm","r8uint","r8sint","r16uint","r16sint","r16float","rg8unorm","rg8snorm","rg8uint","rg8sint","r32uint","r32sint","r32float","rg16uint","rg16sint","rg16float","rgba8unorm","rgba8unorm-srgb","rgba8snorm","rgba8uint","rgba8sint","bgra8unorm","bgra8unorm-srgb","rgb9e5ufloat","rgb10a2unorm","rg11b10ufloat","rg32uint","rg32sint","rg32float","rgba16uint","rgba16sint","rgba16float","rgba32uint","rgba32sint","rgba32float","stencil8","depth16unorm","depth24plus","depth24plus-stencil8","depth32float","depth32float-stencil8","bc1-rgba-unorm","bc1-rgba-unorm-srgb","bc2-rgba-unorm","bc2-rgba-unorm-srgb","bc3-rgba-unorm","bc3-rgba-unorm-srgb","bc4-r-unorm","bc4-r-snorm","bc5-rg-unorm","bc5-rg-snorm","bc6h-rgb-ufloat","bc6h-rgb-float","bc7-rgba-unorm","bc7-rgba-unorm-srgb","etc2-rgb8unorm","etc2-rgb8unorm-srgb","etc2-rgb8a1unorm","etc2-rgb8a1unorm-srgb","etc2-rgba8unorm","etc2-rgba8unorm-srgb","eac-r11unorm","eac-r11snorm","eac-rg11unorm","eac-rg11snorm","astc-4x4-unorm","astc-4x4-unorm-srgb","astc-5x4-unorm","astc-5x4-unorm-srgb","astc-5x5-unorm","astc-5x5-unorm-srgb","astc-6x5-unorm","astc-6x5-unorm-srgb","astc-6x6-unorm","astc-6x6-unorm-srgb","astc-8x5-unorm","astc-8x5-unorm-srgb","astc-8x6-unorm","astc-8x6-unorm-srgb","astc-8x8-unorm","astc-8x8-unorm-srgb","astc-10x5-unorm","astc-10x5-unorm-srgb","astc-10x6-unorm","astc-10x6-unorm-srgb","astc-10x8-unorm","astc-10x8-unorm-srgb","astc-10x10-unorm","astc-10x10-unorm-srgb","astc-12x10-unorm","astc-12x10-unorm-srgb","astc-12x12-unorm","astc-12x12-unorm-srgb","uint8x2","uint8x4","sint8x2","sint8x4","unorm8x2","unorm8x4","snorm8x2","snorm8x4","uint16x2","uint16x4","sint16x2","sint16x4","unorm16x2","unorm16x4","snorm16x2","snorm16x4","float16x2","float16x4","float32","float32x2","float32x3","float32x4","uint32","uint32x2","uint32x3","uint32x4","sint32","sint32x2","sint32x3","sint32x4"];
-window._nimwcb = [,"uint8x2", "uint8x4", "sint8x2", "sint8x4", "unorm8x2", "unorm8x4", "snorm8x2", "snorm8x4", "uint16x2", "uint16x4", "sint16x2", "sint16x4", "unorm16x2", "unorm16x4", "snorm16x2", "snorm16x4", "float16x2", "float16x4", "float32", "float32x2", "float32x3", "float32x4", "uint32", "uint32x2", "uint32x3", "uint32x4", "sint32", "sint32x2", "sint32x3", "sint32x4"];
+ // TextureFormat
+window._nimwct = [,..."r8unorm r8snorm r8uint r8sint r16uint r16sint r16float rg8unorm rg8snorm rg8uint rg8sint r32uint r32sint r32float rg16uint rg16sint rg16float rgba8unorm rgba8unorm-srgb rgba8snorm rgba8uint rgba8sint bgra8unorm bgra8unorm-srgb rgb9e5ufloat rgb10a2unorm rg11b10ufloat rg32uint rg32sint rg32float rgba16uint rgba16sint rgba16float rgba32uint rgba32sint rgba32float stencil8 depth16unorm depth24plus depth24plus-stencil8 depth32float depth32float-stencil8 bc1-rgba-unorm bc1-rgba-unorm-srgb bc2-rgba-unorm bc2-rgba-unorm-srgb bc3-rgba-unorm bc3-rgba-unorm-srgb bc4-r-unorm bc4-r-snorm bc5-rg-unorm bc5-rg-snorm bc6h-rgb-ufloat bc6h-rgb-float bc7-rgba-unorm bc7-rgba-unorm-srgb etc2-rgb8unorm etc2-rgb8unorm-srgb etc2-rgb8a1unorm etc2-rgb8a1unorm-srgb etc2-rgba8unorm etc2-rgba8unorm-srgb eac-r11unorm eac-r11snorm eac-rg11unorm eac-rg11snorm astc-4x4-unorm astc-4x4-unorm-srgb astc-5x4-unorm astc-5x4-unorm-srgb astc-5x5-unorm astc-5x5-unorm-srgb astc-6x5-unorm astc-6x5-unorm-srgb astc-6x6-unorm astc-6x6-unorm-srgb astc-8x5-unorm astc-8x5-unorm-srgb astc-8x6-unorm astc-8x6-unorm-srgb astc-8x8-unorm astc-8x8-unorm-srgb astc-10x5-unorm astc-10x5-unorm-srgb astc-10x6-unorm astc-10x6-unorm-srgb astc-10x8-unorm astc-10x8-unorm-srgb astc-10x10-unorm astc-10x10-unorm-srgb astc-12x10-unorm astc-12x10-unorm-srgb astc-12x12-unorm astc-12x12-unorm-srgb".split(' ')];
+ // VertexFormat
+window._nimwcv = [,..."uint8x2 uint8x4 sint8x2 sint8x4 unorm8x2 unorm8x4 snorm8x2 snorm8x4 uint16x2 uint16x4 sint16x2 sint16x4 unorm16x2 unorm16x4 snorm16x2 snorm16x4 float16x2 float16x4 float32 float32x2 float32x3 float32x4 uint32 uint32x2 uint32x3 uint32x4 sint32 sint32x2 sint32x3 sint32x4".split(' ')];
+ // PrimitiveTopology
+window._nimwcp = ["point-list","line-list","line-strip","triangle-list","triangle-strip"];
+ // FrontFace
+window._nimwcf = ["ccw","cw"];
+ // CullMode
+window._nimwcc = ["none","front","back"];
+ // IndexFormat
+window._nimwci = [,"uint16","uint32"];
 """.}
   init()
 elif defined(linux):
@@ -747,7 +757,7 @@ elif defined(linux):
 
 when defined(wasm):
   proc createInstance*(): Instance {.importwasmp: "navigator['gpu'] || null".}
-  proc getPreferredCanvasFormat*(i: Instance): TextureFormat {.importwasmraw: "return _nimwca.indexOf(_nimo[$0].getPreferredCanvasFormat())"}
+  proc getPreferredCanvasFormat*(i: Instance): TextureFormat {.importwasmraw: "return _nimwct.indexOf(_nimo[$0].getPreferredCanvasFormat())"}
 
 else:
   proc wgpuCreateInstance(descriptor: ptr InstanceDescriptor): Instance {.w.}
@@ -861,8 +871,8 @@ template ptrArrayElem[T](p: ptr T, i: int): ptr T =
 
 
 when defined(wasm):
-  proc createPipeline(device: Device, layout: PipelineLayout, vsModule: ShaderModule, vsEntry: cstring, buffers, fsState: JSObj): RenderPipeline {.importwasmp: """
-  createRenderPipeline({layout: _nimo[$1]||'auto', vertex: {module: _nimo[$2], entryPoint: _nimsj($3), buffers: _nimo[$4]}, fragment: _nimo[$5]||undefined})
+  proc createPipeline(device: Device, layout: PipelineLayout, vsModule: ShaderModule, vsEntry: cstring, buffers, fsState: JSObj, topology: PrimitiveTopology, stripIndexFormat: IndexFormat, frontFace: FrontFace, cullMode: CullMode): RenderPipeline {.importwasmp: """
+  createRenderPipeline({layout: _nimo[$1]||'auto', vertex: {module: _nimo[$2], entryPoint: _nimsj($3), buffers: _nimo[$4]}, fragment: _nimo[$5]||undefined, primitive: {topology: _nimwcp[$6], stripIndexFormat: _nimwci[$7], frontFace: _nimwcf[$8], cullMode: _nimwcc[$9]}})
   """.}
 
   proc makeFsState(m: ShaderModule, e: cstring, targets: JSObj): JSObj {.importwasmraw: """
@@ -871,9 +881,9 @@ when defined(wasm):
 
   proc makeJsArray(count: uint32): JSObj {.importwasmf: "new Array".}
 
-  proc addTarget(t: JSObj, idx: int32, format: TextureFormat) {.importwasmraw: "_nimo[$0][$1] = {format: _nimwca[$2]}".}
+  proc addTarget(t: JSObj, idx: int32, format: TextureFormat) {.importwasmraw: "_nimo[$0][$1] = {format: _nimwct[$2]}".}
   proc addBufferLayout(t: JSObj, idx: int32, arrayStride: uint32, attrs: JSObj) {.importwasmraw: "_nimo[$0][$1] = {arrayStride: $2, attributes: _nimo[$3]}".}
-  proc addAttribute(t: JSObj, idx: int32, fmt, offset, shaderLoc: uint32) {.importwasmraw: "_nimo[$0][$1] = {format: _nimwcb[$2], offset: $3, shaderLocation: $4}".}
+  proc addAttribute(t: JSObj, idx: int32, fmt, offset, shaderLoc: uint32) {.importwasmraw: "_nimo[$0][$1] = {format: _nimwcv[$2], offset: $3, shaderLocation: $4}".}
 
   proc wgpuDeviceCreateRenderPipeline(device: Device, d: ptr RenderPipelineDescriptor): RenderPipeline =
     var fsState: JSObj
@@ -894,7 +904,7 @@ when defined(wasm):
         addAttribute(attributes, j.int32, aa.format.uint32, aa.offset.uint32, aa.shaderLocation)
       addBufferLayout(buffers, i.int32, tt.arrayStride.uint32, attributes)
 
-    result = createPipeline(device, d.layout, d.vertex.module, d.vertex.entryPoint, buffers, fsState)
+    result = createPipeline(device, d.layout, d.vertex.module, d.vertex.entryPoint, buffers, fsState, d.primitive.topology, d.primitive.stripIndexFormat, d.primitive.frontFace, d.primitive.cullMode)
 else:
   proc wgpuDeviceCreateSwapChain(device: Device, surface: Surface, descriptor: ptr SwapChainDescriptor): SwapChain {.w.}
   proc createSwapChain*(device: Device, surface: Surface, descriptor: SwapChainDescriptor): SwapChain {.inline.} =

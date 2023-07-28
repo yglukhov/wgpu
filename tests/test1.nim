@@ -151,7 +151,7 @@ when defined(wasm):
   proc getContext(c: HTMLCanvasElement, s: cstring): JSObj {.importwasmm.}
 
   proc configure(c: GPUCanvasContext, d: Device, fmt: TextureFormat) {.importwasmraw: """
-  _nimo[$0].configure({device: _nimo[$1], format: _nimwca[$2]})
+  _nimo[$0].configure({device: _nimo[$1], format: _nimwct[$2]})
   """}
 
   proc getCurrentTexture(c: GPUCanvasContext): GPUTexture {.importwasmm.}
