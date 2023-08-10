@@ -39,7 +39,7 @@ const instanceData = [
 const shaderCode = """
 struct VertexInput {
   @location(0) position: vec3f,
-  @location(1) color: vec4u,
+  @location(1) color: u32,
   @location(2) instancePos: vec2f,
 };
 
@@ -50,10 +50,10 @@ struct VertexOutput {
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
-  var o: VertexOutput;
-  o.position = vec4(in.position.x + in.instancePos.x, in.position.y + in.instancePos.y, 0.0, 1.0);
-  o.color = vec4f(in.color) / 255.0;
-  return o;
+  return VertexOutput(
+    vec4(in.position, 1.0) + vec4(in.instancePos, 0.0, 0.0),
+    unpack4x8unorm(in.color)
+  );
 }
 
 @fragment
@@ -86,7 +86,7 @@ proc createPipeline(d: Device, swapChainFormat: TextureFormat): RenderPipeline =
   va1[0].offset = 0
 
   va1[1].shaderLocation = 1
-  va1[1].format = vfUint8x4
+  va1[1].format = vfUint32
   va1[1].offset = sizeof(float32) * 3
 
   var va2: array[1, VertexAttribute]
