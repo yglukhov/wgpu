@@ -1045,7 +1045,9 @@ template ptrArrayElem[T](p: ptr T, i: int): ptr T =
 
 # Methods of Buffer
 when defined(wasm):
-  discard
+  proc bufferSize(b: Buffer): uint32 {.importwasmp: "size".}
+  proc usage*(b: Buffer): set[BufferUsage] {.importwasmp.}
+  proc size*(b: Buffer): uint64 {.inline.} = b.bufferSize
 else:
   proc size*(b: Buffer): uint64 {.w, importc: "wgpuBufferGetSize".}
   proc usage*(b: Buffer): set[BufferUsage] {.w, importc: "wgpuBufferGetUsage".}
