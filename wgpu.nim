@@ -29,29 +29,56 @@ when defined(wasm):
     TextureView* = object of JSObj
 else:
   type
-    Adapter* = ptr object
-    BindGroup* = ptr object
-    BindGroupLayout* = ptr object
-    Buffer* = ptr object
-    CommandBuffer* = ptr object
-    CommandEncoder* = ptr object
-    ComputePassEncoder* = ptr object
-    ComputePipeline* = ptr object
-    Device* = ptr object
-    Instance* = ptr object
-    PipelineLayout* = ptr object
-    QuerySet* = ptr object
-    Queue* = ptr object
-    RenderBundle* = ptr object
-    RenderBundleEncoder* = ptr object
-    RenderPassEncoder* = ptr object
-    RenderPipeline* = ptr object
-    Sampler* = ptr object
-    ShaderModule* = ptr object
-    Surface* = ptr object
-    SwapChain* = ptr object
-    Texture* = ptr object
-    TextureView* = ptr object
+    AdapterPtr* = ptr object
+    BindGroupPtr* = ptr object
+    BindGroupLayoutPtr* = ptr object
+    BufferPtr* = ptr object
+    CommandBufferPtr* = ptr object
+    CommandEncoderPtr* = ptr object
+    ComputePassEncoderPtr* = ptr object
+    ComputePipelinePtr* = ptr object
+    DevicePtr* = ptr object
+    InstancePtr* = ptr object
+    PipelineLayoutPtr* = ptr object
+    QuerySetPtr* = ptr object
+    QueuePtr* = ptr object
+    RenderBundlePtr* = ptr object
+    RenderBundleEncoderPtr* = ptr object
+    RenderPassEncoderPtr* = ptr object
+    RenderPipelinePtr* = ptr object
+    SamplerPtr* = ptr object
+    ShaderModulePtr* = ptr object
+    SurfacePtr* = ptr object
+    SwapChainPtr* = ptr object
+    TexturePtr* = ptr object
+    TextureViewPtr* = ptr object
+
+    SharedPtr*[T] = object
+      p*: T
+
+    Adapter* = SharedPtr[AdapterPtr]
+    BindGroup* = SharedPtr[BindGroupPtr]
+    BindGroupLayout* = SharedPtr[BindGroupLayoutPtr]
+    Buffer* = SharedPtr[BufferPtr]
+    CommandBuffer* = SharedPtr[CommandBufferPtr]
+    CommandEncoder* = SharedPtr[CommandEncoderPtr]
+    ComputePassEncoder* = SharedPtr[ComputePassEncoderPtr]
+    ComputePipeline* = SharedPtr[ComputePipelinePtr]
+    Device* = SharedPtr[DevicePtr]
+    Instance* = SharedPtr[InstancePtr]
+    PipelineLayout* = SharedPtr[PipelineLayoutPtr]
+    QuerySet* = SharedPtr[QuerySetPtr]
+    Queue* = SharedPtr[QueuePtr]
+    RenderBundle* = SharedPtr[RenderBundlePtr]
+    RenderBundleEncoder* = SharedPtr[RenderBundleEncoderPtr]
+    RenderPassEncoder* = SharedPtr[RenderPassEncoderPtr]
+    RenderPipeline* = SharedPtr[RenderPipelinePtr]
+    Sampler* = SharedPtr[SamplerPtr]
+    ShaderModule* = SharedPtr[ShaderModulePtr]
+    Surface* = SharedPtr[SurfacePtr]
+    SwapChain* = SharedPtr[SwapChainPtr]
+    Texture* = SharedPtr[TexturePtr]
+    TextureView* = SharedPtr[TextureViewPtr]
 
 type
   AdapterType* {.size: sizeof(cint).} = enum
@@ -479,6 +506,12 @@ type
     cwmAlpha# = 0x00000008,
     # cwmAll# = 0x0000000F,
 
+  ShaderStage* {.size: sizeof(cint).} = enum
+    # WGPUShaderStage_None = 0x00000000,
+    ssVertex# = 0x00000001,
+    ssFragment# = 0x00000002,
+    ssCompute# = 0x00000004,
+
   TextureUsage* {.size: sizeof(cint).} = enum
     # none = 0x00000000,
     copySrc# = 0x00000001,
@@ -491,11 +524,20 @@ type
     next*: ptr ChainedStruct
     sType*: SType
 
+  BindGroupEntry* = object
+    nextInChain*: ptr ChainedStruct
+    binding*: uint32
+    buffer*: Buffer # nullable
+    offset*: uint64
+    size*: uint64
+    sampler*: Sampler # nullable
+    textureView*: TextureView # nullable
+
   PipelineLayoutDescriptor* = object
     nextInChain*: ptr ChainedStruct
     label*: cstring # nullable
     bindGroupLayoutCount*: uint32
-    bindGroupLayouts*: BindGroupLayout
+    bindGroupLayouts*: ptr BindGroupLayout
 
   PrimitiveState* = object
     nextInChain*: ptr ChainedStruct
@@ -582,6 +624,24 @@ type
     powerPreference*: PowerPreference
     forceFallbackAdapter*: bool
 
+  SamplerBindingLayout* = object
+    nextInChain*: ptr ChainedStruct
+    kind*: SamplerBindingType
+
+  SamplerDescriptor* = object
+    nextInChain*: ptr ChainedStruct
+    label*: cstring # nullable
+    addressModeU*: AddressMode
+    addressModeV*: AddressMode
+    addressModeW*: AddressMode
+    magFilter*: FilterMode
+    minFilter*: FilterMode
+    mipmapFilter*: MipmapFilterMode
+    lodMinClamp*: float32
+    lodMaxClamp*: float32
+    compare*: CompareFunction
+    maxAnisotropy*: uint16
+
   ShaderModuleCompilationHint* = object
     nextInChain*: ptr ChainedStruct
     entryPoint*: cstring
@@ -596,6 +656,12 @@ type
     depthFailOp*: StencilOperation
     passOp*: StencilOperation
 
+  StorageTextureBindingLayout* = object
+    nextInChain*: ptr ChainedStruct
+    access*: StorageTextureAccess
+    format*: TextureFormat
+    viewDimension*: TextureViewDimension
+
   SurfaceDescriptor* = object
     nextInChain*: ptr ChainedStruct
     label*: cstring # nullable
@@ -604,6 +670,12 @@ type
     operation*: BlendOperation
     srcFactor*: BlendFactor
     dstFactor*: BlendFactor
+
+  BufferBindingLayout* = object
+    nextInChain*: ptr ChainedStruct
+    kind*: BufferBindingType
+    hasDynamicOffset*: bool
+    minBindingSize*: uint64
 
   BufferDescriptor* = object
     nextInChain*: ptr ChainedStruct
@@ -632,6 +704,12 @@ type
     attributeCount*: uint32
     attributes*: ptr VertexAttribute
 
+  BindGroupLayoutDescriptor* = object
+    nextInChain*: ptr ChainedStruct
+    label*: cstring # nullable
+    entryCount*: uint32
+    entries*: ptr BindGroupLayoutEntry
+
   ColorTargetState* = object
     nextInChain*: ptr ChainedStruct
     format*: TextureFormat
@@ -659,9 +737,27 @@ type
     colorAttachmentCount*: uint32
     colorAttachments*: ptr RenderPassColorAttachment
     depthStencilAttachment*: ptr RenderPassDepthStencilAttachment #nullable
-    occlusionQuerySet*: QuerySet # nullable
+    occlusionQuerySet*: QuerySet# nullable
     timestampWriteCount*: uint32
     timestampWrites*: RenderPassTimestampWrite
+
+  SurfaceDescriptorFromAndroidNativeWindow* = object of ChainedStruct
+    window*: pointer
+
+  SurfaceDescriptorFromMetalLayer* = object of ChainedStruct
+    layer*: pointer
+
+  SurfaceDescriptorFromWaylandSurface* = object of ChainedStruct
+    display*: pointer
+    surface*: pointer
+
+  SurfaceDescriptorFromWindowsHWND* = object of ChainedStruct
+    hinstance*: pointer
+    hwnd*: pointer
+
+  SurfaceDescriptorFromXcbWindow* = object of ChainedStruct
+    connection*: pointer
+    window*: uint32
 
   SurfaceDescriptorFromXlibWindow* = object of ChainedStruct
     display*: pointer
@@ -676,10 +772,32 @@ type
     height*: uint32
     presentMode*: PresentMode
 
+  TextureBindingLayout* = object
+    nextInChain*: ptr ChainedStruct
+    sampleType*: TextureSampleType
+    viewDimension*: TextureViewDimension
+    multisampled*: bool
+
   VertexAttribute* = object
     format*: VertexFormat
     offset*: uint64
     shaderLocation*: uint32
+
+  BindGroupDescriptor* = object
+    nextInChain*: ptr ChainedStruct
+    label*: cstring # nullable
+    layout*: BindGroupLayout
+    entryCount*: uint32
+    entries*: ptr BindGroupEntry
+
+  BindGroupLayoutEntry* = object
+    nextInChain*: ptr ChainedStruct
+    binding*: uint32
+    visibility*: set[ShaderStage]
+    buffer*: BufferBindingLayout
+    sampler*: SamplerBindingLayout
+    texture*: TextureBindingLayout
+    storageTexture*: StorageTextureBindingLayout
 
   BlendState* = object
     color*: BlendComponent
@@ -727,14 +845,16 @@ type
     fragment*: ptr FragmentState # nullable
 
   ErrorCallback* = proc(e: ErrorType, message: cstring, userdata: pointer) {.cdecl.}
-  RequestAdapterCallback* = proc(status: RequestAdapterStatus, adapter: Adapter, message: cstring, userdata: pointer) {.cdecl.}
-  RequestDeviceCallback* = proc(status: RequestDeviceStatus, device: Device, message: cstring, userdata: pointer) {.cdecl.}
 
 const
   cwmAll* = {cwmRed, cwmGreen, cwmBlue, cwmAlpha}
 
 when defined(wasm):
   proc init() {.importwasmraw: """
+ // AddressMode
+window._nimwca = ['repeat','mirror-repeat','clamp-to-edge'];
+ // BufferBindingType
+window._nimwcb = [,'uniform','storage','read-only-storage'];
  // TextureFormat
 window._nimwct = [,..."r8unorm r8snorm r8uint r8sint r16uint r16sint r16float rg8unorm rg8snorm rg8uint rg8sint r32uint r32sint r32float rg16uint rg16sint rg16float rgba8unorm rgba8unorm-srgb rgba8snorm rgba8uint rgba8sint bgra8unorm bgra8unorm-srgb rgb9e5ufloat rgb10a2unorm rg11b10ufloat rg32uint rg32sint rg32float rgba16uint rgba16sint rgba16float rgba32uint rgba32sint rgba32float stencil8 depth16unorm depth24plus depth24plus-stencil8 depth32float depth32float-stencil8 bc1-rgba-unorm bc1-rgba-unorm-srgb bc2-rgba-unorm bc2-rgba-unorm-srgb bc3-rgba-unorm bc3-rgba-unorm-srgb bc4-r-unorm bc4-r-snorm bc5-rg-unorm bc5-rg-snorm bc6h-rgb-ufloat bc6h-rgb-float bc7-rgba-unorm bc7-rgba-unorm-srgb etc2-rgb8unorm etc2-rgb8unorm-srgb etc2-rgb8a1unorm etc2-rgb8a1unorm-srgb etc2-rgba8unorm etc2-rgba8unorm-srgb eac-r11unorm eac-r11snorm eac-rg11unorm eac-rg11snorm astc-4x4-unorm astc-4x4-unorm-srgb astc-5x4-unorm astc-5x4-unorm-srgb astc-5x5-unorm astc-5x5-unorm-srgb astc-6x5-unorm astc-6x5-unorm-srgb astc-6x6-unorm astc-6x6-unorm-srgb astc-8x5-unorm astc-8x5-unorm-srgb astc-8x6-unorm astc-8x6-unorm-srgb astc-8x8-unorm astc-8x8-unorm-srgb astc-10x5-unorm astc-10x5-unorm-srgb astc-10x6-unorm astc-10x6-unorm-srgb astc-10x8-unorm astc-10x8-unorm-srgb astc-10x10-unorm astc-10x10-unorm-srgb astc-12x10-unorm astc-12x10-unorm-srgb astc-12x12-unorm astc-12x12-unorm-srgb".split(' ')];
  // VertexFormat
@@ -747,25 +867,98 @@ window._nimwcf = ["ccw","cw"];
 window._nimwcc = ["none","front","back"];
  // IndexFormat
 window._nimwci = [,"uint16","uint32"];
+ // FilterMode and MipmapFilterMode
+window._nimwcF = ["nearest","linear"];
+ // CompareFunction
+window._nimwcC = [,"never","less","less-equal","greater","greater-equal","equal","not-equal","always"];
+ // VertexStepMode
+window._nimwcs = ["vertex","instance"];
 """.}
   init()
 elif defined(linux):
-  when defined(amd64):
-    {.pragma: w, dynlib: "./wgpu/linux-x86_64/libwgpu.so", importc.}
-  elif defined(i386):
-    {.pragma: w, dynlib: "./wgpu/linux-i686/libwgpu.so", importc.}
+  {.pragma: w, dynlib: "./wgpu/linux-x86_64/libwgpu_native.so", importc.}
+
+when not defined(wasm):
+  proc retain*(v: AdapterPtr) {.w, importc: "wgpuAdapterReference".}
+  proc release*(v: AdapterPtr) {.w, importc: "wgpuAdapterRelease".}
+  proc retain*(v: BindGroupPtr) {.w, importc: "wgpuBindGroupReference".}
+  proc release*(v: BindGroupPtr) {.w, importc: "wgpuBindGroupRelease".}
+  proc retain*(v: BindGroupLayoutPtr) {.w, importc: "wgpuBindGroupLayoutReference".}
+  proc release*(v: BindGroupLayoutPtr) {.w, importc: "wgpuBindGroupLayoutRelease".}
+  proc retain*(v: BufferPtr) {.w, importc: "wgpuBufferReference".}
+  proc release*(v: BufferPtr) {.w, importc: "wgpuBufferRelease".}
+  proc retain*(v: CommandBufferPtr) {.w, importc: "wgpuCommandBufferReference".}
+  proc release*(v: CommandBufferPtr) {.w, importc: "wgpuCommandBufferRelease".}
+  proc retain*(v: CommandEncoderPtr) {.w, importc: "wgpuCommandEncoderReference".}
+  proc release*(v: CommandEncoderPtr) {.w, importc: "wgpuCommandEncoderRelease".}
+  proc retain*(v: ComputePassEncoderPtr) {.w, importc: "wgpuComputePassEncoderReference".}
+  proc release*(v: ComputePassEncoderPtr) {.w, importc: "wgpuComputePassEncoderRelease".}
+  proc retain*(v: ComputePipelinePtr) {.w, importc: "wgpuComputePipelineReference".}
+  proc release*(v: ComputePipelinePtr) {.w, importc: "wgpuComputePipelineRelease".}
+  proc retain*(v: DevicePtr) {.w, importc: "wgpuDeviceReference".}
+  proc release*(v: DevicePtr) {.w, importc: "wgpuDeviceRelease".}
+  proc retain*(v: InstancePtr) {.w, importc: "wgpuInstanceReference".}
+  proc release*(v: InstancePtr) {.w, importc: "wgpuInstanceRelease".}
+  proc retain*(v: PipelineLayoutPtr) {.w, importc: "wgpuPipelineLayoutReference".}
+  proc release*(v: PipelineLayoutPtr) {.w, importc: "wgpuPipelineLayoutRelease".}
+  proc retain*(v: QuerySetPtr) {.w, importc: "wgpuQuerySetReference".}
+  proc release*(v: QuerySetPtr) {.w, importc: "wgpuQuerySetRelease".}
+  proc retain*(v: QueuePtr) {.w, importc: "wgpuQueueReference".}
+  proc release*(v: QueuePtr) {.w, importc: "wgpuQueueRelease".}
+  proc retain*(v: RenderBundlePtr) {.w, importc: "wgpuRenderBundleReference".}
+  proc release*(v: RenderBundlePtr) {.w, importc: "wgpuRenderBundleRelease".}
+  proc retain*(v: RenderBundleEncoderPtr) {.w, importc: "wgpuRenderBundleEncoderReference".}
+  proc release*(v: RenderBundleEncoderPtr) {.w, importc: "wgpuRenderBundleEncoderRelease".}
+  proc retain*(v: RenderPassEncoderPtr) {.w, importc: "wgpuRenderPassEncoderReference".}
+  proc release*(v: RenderPassEncoderPtr) {.w, importc: "wgpuRenderPassEncoderRelease".}
+  proc retain*(v: RenderPipelinePtr) {.w, importc: "wgpuRenderPipelineReference".}
+  proc release*(v: RenderPipelinePtr) {.w, importc: "wgpuRenderPipelineRelease".}
+  proc retain*(v: SamplerPtr) {.w, importc: "wgpuSamplerReference".}
+  proc release*(v: SamplerPtr) {.w, importc: "wgpuSamplerRelease".}
+  proc retain*(v: ShaderModulePtr) {.w, importc: "wgpuShaderModuleReference".}
+  proc release*(v: ShaderModulePtr) {.w, importc: "wgpuShaderModuleRelease".}
+  proc retain*(v: SurfacePtr) {.w, importc: "wgpuSurfaceReference".}
+  proc release*(v: SurfacePtr) {.w, importc: "wgpuSurfaceRelease".}
+  proc retain*(v: SwapChainPtr) {.w, importc: "wgpuSwapChainReference".}
+  proc release*(v: SwapChainPtr) {.w, importc: "wgpuSwapChainRelease".}
+  proc retain*(v: TexturePtr) {.w, importc: "wgpuTextureReference".}
+  proc release*(v: TexturePtr) {.w, importc: "wgpuTextureRelease".}
+  proc retain*(v: TextureViewPtr) {.w, importc: "wgpuTextureViewReference".}
+  proc release*(v: TextureViewPtr) {.w, importc: "wgpuTextureViewRelease".}
+
+  proc `=destroy`*[T](s: var SharedPtr[T]) =
+    if not s.p.isNil:
+      release(s.p)
+      s.p = nil
+
+  proc `=copy`*[T](dst: var SharedPtr[T], src: SharedPtr[T]) =
+    if dst.p != src.p:
+      if not src.p.isNil:
+        retain(src.p)
+      if not dst.p.isNil:
+        release(dst.p)
+      dst.p = src.p
+
+  proc isNil*(v: SharedPtr): bool {.inline.} = v.p.isNil
+
+  proc `==`*(v: SharedPtr, n: typeof(nil)): bool {.inline.} = v.p.isNil
+
+  proc toShared[T](v: T): SharedPtr[T] {.inline.} = SharedPtr[T](p: v)
+  proc toSharedRetain[T](v: T): SharedPtr[T] {.inline.} =
+    retain(v)
+    SharedPtr[T](p: v)
 
 when defined(wasm):
   proc createInstance*(): Instance {.importwasmp: "navigator['gpu'] || null".}
   proc getPreferredCanvasFormat*(i: Instance): TextureFormat {.importwasmraw: "return _nimwct.indexOf(_nimo[$0].getPreferredCanvasFormat())"}
 
 else:
-  proc wgpuCreateInstance(descriptor: ptr InstanceDescriptor): Instance {.w.}
+  proc wgpuCreateInstance(descriptor: ptr InstanceDescriptor): InstancePtr {.w.}
   proc createInstance*(): Instance {.inline.} =
     var d: InstanceDescriptor
-    wgpuCreateInstance(addr d)
+    wgpuCreateInstance(addr d).toShared
 
-  proc createInstance*(descriptor: InstanceDescriptor): Instance {.inline.} = wgpuCreateInstance(addr descriptor)
+  proc createInstance*(descriptor: InstanceDescriptor): Instance {.inline.} = wgpuCreateInstance(addr descriptor).toShared
 
 
 when defined(wasm):
@@ -783,12 +976,14 @@ when defined(wasm):
     delete(adapter)
 
 else:
+  type
+    RequestAdapterCallback* = proc(status: RequestAdapterStatus, adapter: AdapterPtr, message: cstring, userdata: pointer) {.cdecl.}
   proc wgpuInstanceRequestAdapter(instance: Instance, options: ptr RequestAdapterOptions, callback: RequestAdapterCallback, userdata: pointer) {.w.}
 
-  proc requestAdapterCallback(status: RequestAdapterStatus, adapter: Adapter, message: cstring, env: pointer) {.cdecl.} =
+  proc requestAdapterCallback(status: RequestAdapterStatus, adapter: AdapterPtr, message: cstring, env: pointer) {.cdecl.} =
     let env = cast[Future[Adapter]](env)
     GC_unref(env)
-    env.complete(adapter)
+    env.complete(adapter.toShared)
 
 proc requestAdapter(instance: Instance, options: ptr RequestAdapterOptions): Future[Adapter] =
   result.new()
@@ -798,6 +993,17 @@ proc requestAdapter(instance: Instance, options: ptr RequestAdapterOptions): Fut
 
 proc requestAdapter*(instance: Instance, options: RequestAdapterOptions): Future[Adapter] {.inline.} = instance.requestAdapter(addr options)
 
+
+# Methods of Adapter
+when defined(wasm):
+  discard
+else:
+  proc wgpuAdapterEnumerateFeatures(adapter: AdapterPtr, features: ptr FeatureName): csize_t {.w.}
+  proc features*(a: Adapter): seq[FeatureName] =
+    let s = wgpuAdapterEnumerateFeatures(a.p, nil)
+    result.setLen(s)
+    if s != 0:
+      discard wgpuAdapterEnumerateFeatures(a.p, addr result[0])
 
 when defined(wasm):
   type
@@ -814,15 +1020,17 @@ when defined(wasm):
     delete(device)
 
 else:
-  proc wgpuInstanceCreateSurface(instance: Instance, descriptor: ptr SurfaceDescriptor): Surface {.w.}
-  proc createSurface*(instance: Instance, descriptor: SurfaceDescriptor): Surface {.inline.} = wgpuInstanceCreateSurface(instance, addr descriptor)
+  type
+    RequestDeviceCallback* = proc(status: RequestDeviceStatus, device: DevicePtr, message: cstring, userdata: pointer) {.cdecl.}
+  proc wgpuInstanceCreateSurface(instance: InstancePtr, descriptor: ptr SurfaceDescriptor): SurfacePtr {.w.}
+  proc createSurface*(instance: Instance, descriptor: SurfaceDescriptor): Surface {.inline.} = wgpuInstanceCreateSurface(instance.p, addr descriptor).toShared
 
   proc wgpuAdapterRequestDevice(adapter: Adapter, descriptor: ptr DeviceDescriptor, callback: RequestDeviceCallback, userdata: pointer) {.w.}
 
-  proc requestDeviceCallback(status: RequestDeviceStatus, device: Device, message: cstring, env: pointer) {.cdecl.} =
+  proc requestDeviceCallback(status: RequestDeviceStatus, device: DevicePtr, message: cstring, env: pointer) {.cdecl.} =
     let env = cast[Future[Device]](env)
     GC_unref(env)
-    env.complete(device)
+    env.complete(device.toShared)
 
 proc requestDevice(adapter: Adapter, options: ptr DeviceDescriptor): Future[Device] =
   result.new()
@@ -832,8 +1040,71 @@ proc requestDevice(adapter: Adapter, options: ptr DeviceDescriptor): Future[Devi
 
 proc requestDevice*(adapter: Adapter, options: DeviceDescriptor): Future[Device] {.inline.} = adapter.requestDevice(addr options)
 
+template ptrArrayElem[T](p: ptr T, i: int): ptr T =
+  addr cast[ptr UncheckedArray[T]](p)[i]
+
+# Methods of Buffer
+when defined(wasm):
+  discard
+else:
+  proc size*(b: Buffer): uint64 {.w, importc: "wgpuBufferGetSize".}
+  proc usage*(b: Buffer): set[BufferUsage] {.w, importc: "wgpuBufferGetUsage".}
 
 # Methods of Device
+
+when defined(wasm):
+  proc makeJsArray(count: uint32): JSObj {.importwasmf: "new Array".}
+
+  proc addBindgroupEntry(t: JSObj, idx: int32, binding, offset, size: uint32, resource: JSRef) {.importwasmraw: "var n=_nimo,o=n[$5];n[$0][$1] = {binding: $2, resource: $4?{offset: $3, size: $4, buffer: o}:o}".}
+
+  proc log(o: JSObj){.importwasmraw: """console.log('entr', _nimo[$0])""".}
+
+  proc createBindGroup(device: Device, layout: BindGroupLayout, entries: JSObj): BindGroup {.importwasmp: """
+  createBindGroup({layout: _nimo[$1], entries: _nimo[$2]})
+  """}
+
+  proc createBindGroup*(device: Device, descriptor: BindGroupDescriptor): BindGroup {.inline.} =
+    let entryCount = descriptor.entryCount
+    let entries = makeJsArray(entryCount)
+    for i in 0 ..< entryCount.int:
+      let e = ptrArrayElem(descriptor.entries, i)
+      var res = e.buffer.o
+      if res.isNil:
+        res = e.sampler.o
+        if res.isNil:
+          res = e.textureView.o
+      addBindgroupEntry(entries, i.int32, e.binding, uint32(e.offset), uint32(e.size), res)
+    log(descriptor.layout)
+    createBindGroup(device, descriptor.layout, entries)
+
+else:
+  proc wgpuDeviceCreateBindGroup(device: DevicePtr, descriptor: ptr BindGroupDescriptor): BindGroupPtr {.w.}
+  proc createBindGroup*(device: Device, descriptor: BindGroupDescriptor): BindGroup {.inline.} =
+    wgpuDeviceCreateBindGroup(device.p, addr descriptor).toShared
+
+when defined(wasm):
+  proc createBindGroupLayout(device: Device, entries: JSObj): BindGroupLayout {.importwasmp: """
+  createBindGroupLayout({entries:_nimo[$1]})
+  """.}
+
+  proc addBindgroupLayoutEntryBuffer(t: JSObj, idx: int32, binding, visibility: uint32, k: BufferBindingType, hdo: bool, mbs: uint32) {.importwasmraw: "_nimo[$0][$1] = {binding: $2, visibility: $3, buffer: {type: _nimwcb[$4], hasDynamicOffset: $5, minBindingSize: $6}}".}
+
+  proc createBindGroupLayout*(device: Device, descriptor: BindGroupLayoutDescriptor): BindGroupLayout =
+    let entryCount = descriptor.entryCount
+    let entries = makeJsArray(entryCount)
+    for i in 0 ..< entryCount.int:
+      let e = ptrArrayElem(descriptor.entries, i)
+      if e.buffer.kind != bbtUndefined:
+        addBindgroupLayoutEntryBuffer(entries, i.int32, e.binding, cast[uint32](e.visibility), e.buffer.kind, e.buffer.hasDynamicOffset, uint32(e.buffer.minBindingSize))
+      else:
+        assert(false, "Not implemented")
+    createBindGroupLayout(device, entries)
+
+else:
+  proc wgpuDeviceCreateBindGroupLayout(device: DevicePtr, descriptor: ptr BindGroupLayoutDescriptor): BindGroupLayoutPtr {.w}
+  proc createBindGroupLayout*(device: Device, descriptor: BindGroupLayoutDescriptor): BindGroupLayout {.inline.} =
+    wgpuDeviceCreateBindGroupLayout(device.p, addr descriptor).toShared
+
 when defined(wasm):
   proc createBuffer(device: Device, usage: uint32, size: uint32, mappedAtCreation: bool): Buffer {.importwasmraw: """
   return _nimok(_nimo[$0].createBuffer({usage: $1, size: $2, mappedAtCreation: $3}))
@@ -841,34 +1112,33 @@ when defined(wasm):
   proc createBuffer*(device: Device, d: BufferDescriptor): Buffer {.inline.} =
     createBuffer(device, cast[uint32](d.usage), d.size.uint32, d.mappedAtCreation)
 else:
-  proc wgpuDeviceCreateBuffer(device: Device, descriptor: ptr BufferDescriptor): Buffer {.w.}
+  proc wgpuDeviceCreateBuffer(device: DevicePtr, descriptor: ptr BufferDescriptor): BufferPtr {.w.}
   proc createBuffer*(device: Device, descriptor: BufferDescriptor): Buffer {.inline.} =
-    wgpuDeviceCreateBuffer(device, addr descriptor)
+    wgpuDeviceCreateBuffer(device.p, addr descriptor).toShared
 
 when defined(wasm):
   proc getQueue*(device: Device): Queue {.importwasmp: "queue".}
 else:
-  proc getQueue*(device: Device): Queue {.w, importc: "wgpuDeviceGetQueue".}
+  proc wgpuDeviceGetQueue(device: DevicePtr): QueuePtr {.w.}
+  proc getQueue*(device: Device): Queue {.inline.} =
+    wgpuDeviceGetQueue(device.p).toSharedRetain()
 
-  proc wgpuDeviceSetUncapturedErrorCallback(device: Device, callback: ErrorCallback, userdata: pointer) {.w.}
+  proc wgpuDeviceSetUncapturedErrorCallback(device: DevicePtr, callback: ErrorCallback, userdata: pointer) {.w.}
   proc setUncapturedErrorCallback*(device: Device, callback: ErrorCallback, userdata: pointer = nil) {.inline.} =
-    wgpuDeviceSetUncapturedErrorCallback(device, callback, userdata)
+    wgpuDeviceSetUncapturedErrorCallback(device.p, callback, userdata)
 
 when defined(wasm):
   proc createCommandEncoder*(device: Device): CommandEncoder {.importwasmm.}
-  proc wgpuDeviceCreateCommandEncoder(device: Device, descriptor: ptr CommandEncoderDescriptor): CommandEncoder {.inline.} =
+  proc createCommandEncoder*(device: Device, descriptor: CommandEncoderDescriptor): CommandEncoder {.inline.} =
     device.createCommandEncoder()
+
 else:
-  proc wgpuDeviceCreateCommandEncoder(device: Device, descriptor: ptr CommandEncoderDescriptor): CommandEncoder {.w.}
+  proc wgpuDeviceCreateCommandEncoder(device: DevicePtr, descriptor: ptr CommandEncoderDescriptor): CommandEncoderPtr {.w.}
   proc createCommandEncoder*(device: Device): CommandEncoder {.inline.} =
-    wgpuDeviceCreateCommandEncoder(device, nil)
+    wgpuDeviceCreateCommandEncoder(device.p, nil).toShared
 
-proc createCommandEncoder*(device: Device, descriptor: CommandEncoderDescriptor): CommandEncoder {.inline.} =
-  wgpuDeviceCreateCommandEncoder(device, addr descriptor)
-
-template ptrArrayElem[T](p: ptr T, i: int): ptr T =
-  addr cast[ptr UncheckedArray[T]](p)[i]
-
+  proc createCommandEncoder*(device: Device, descriptor: CommandEncoderDescriptor): CommandEncoder {.inline.} =
+    wgpuDeviceCreateCommandEncoder(device.p, addr descriptor).toShared
 
 when defined(wasm):
   proc createPipeline(device: Device, layout: PipelineLayout, vsModule: ShaderModule, vsEntry: cstring, buffers, fsState: JSObj, topology: PrimitiveTopology, stripIndexFormat: IndexFormat, frontFace: FrontFace, cullMode: CullMode): RenderPipeline {.importwasmp: """
@@ -879,13 +1149,11 @@ when defined(wasm):
   return _nimok({module: _nimo[$0], entryPoint: _nimsj($1), targets: _nimo[$2]})
   """}
 
-  proc makeJsArray(count: uint32): JSObj {.importwasmf: "new Array".}
-
   proc addTarget(t: JSObj, idx: int32, format: TextureFormat) {.importwasmraw: "_nimo[$0][$1] = {format: _nimwct[$2]}".}
-  proc addBufferLayout(t: JSObj, idx: int32, arrayStride: uint32, attrs: JSObj) {.importwasmraw: "_nimo[$0][$1] = {arrayStride: $2, attributes: _nimo[$3]}".}
+  proc addBufferLayout(t: JSObj, idx: int32, arrayStride: uint32, attrs: JSObj, stepMode: VertexStepMode) {.importwasmraw: "_nimo[$0][$1] = {arrayStride: $2, attributes: _nimo[$3], stepMode: _nimwcs[$4]}".}
   proc addAttribute(t: JSObj, idx: int32, fmt, offset, shaderLoc: uint32) {.importwasmraw: "_nimo[$0][$1] = {format: _nimwcv[$2], offset: $3, shaderLocation: $4}".}
 
-  proc wgpuDeviceCreateRenderPipeline(device: Device, d: ptr RenderPipelineDescriptor): RenderPipeline =
+  proc createRenderPipeline*(device: Device, d: RenderPipelineDescriptor): RenderPipeline =
     var fsState: JSObj
     let f = d.fragment
     if not f.isNil:
@@ -902,25 +1170,42 @@ when defined(wasm):
       for j in 0 ..< tt.attributeCount.int:
         let aa = ptrArrayElem(tt.attributes, j)
         addAttribute(attributes, j.int32, aa.format.uint32, aa.offset.uint32, aa.shaderLocation)
-      addBufferLayout(buffers, i.int32, tt.arrayStride.uint32, attributes)
+      addBufferLayout(buffers, i.int32, tt.arrayStride.uint32, attributes, tt.stepMode)
 
     result = createPipeline(device, d.layout, d.vertex.module, d.vertex.entryPoint, buffers, fsState, d.primitive.topology, d.primitive.stripIndexFormat, d.primitive.frontFace, d.primitive.cullMode)
 else:
-  proc wgpuDeviceCreateSwapChain(device: Device, surface: Surface, descriptor: ptr SwapChainDescriptor): SwapChain {.w.}
+  proc wgpuDeviceCreateSwapChain(device: DevicePtr, surface: SurfacePtr, descriptor: ptr SwapChainDescriptor): SwapChainPtr {.w.}
   proc createSwapChain*(device: Device, surface: Surface, descriptor: SwapChainDescriptor): SwapChain {.inline.} =
-    wgpuDeviceCreateSwapChain(device, surface, addr descriptor)
+    wgpuDeviceCreateSwapChain(device.p, surface.p, addr descriptor).toShared
 
-  proc wgpuDeviceCreateRenderPipeline(device: Device, descriptor: ptr RenderPipelineDescriptor): RenderPipeline {.w.}
+  proc wgpuDeviceCreateRenderPipeline(device: DevicePtr, descriptor: ptr RenderPipelineDescriptor): RenderPipelinePtr {.w.}
 
-proc createRenderPipeline*(device: Device, descriptor: RenderPipelineDescriptor): RenderPipeline {.inline.} =
-  wgpuDeviceCreateRenderPipeline(device, addr descriptor)
+  proc createRenderPipeline*(device: Device, descriptor: RenderPipelineDescriptor): RenderPipeline {.inline.} =
+    wgpuDeviceCreateRenderPipeline(device.p, addr descriptor).toShared
+
+when defined(wasm):
+  proc createSampler*(device: Device): Sampler {.importwasmm.}
+  proc createSampler(device: Device, u, v, w: AddressMode, magf, minf: FilterMode, mf: MipmapFilterMode, lmin, lmax: float32, c: CompareFunction, a: uint32): Sampler {.importwasmp: """
+  createSampler({addressModeU: _nimwca[$1], addressModeV: _nimwca[$2], addressModeW: _nimwca[$3], magFilter: _nimwcF[$4], minFilter: _nimwcF[$5], mipmapFilter: _nimwcF[$6], lodMinClamp: $7, lodMaxClamp: $8, compare: _nimwcC[$9], maxAnisotropy: $10})
+"""}
+  proc createSampler*(device: Device, d: SamplerDescriptor): Sampler {.inline.} =
+    createSampler(device, d.addressModeU, d.addressModeV, d.addressModeW, d.magFilter, d.minFilter, d.mipmapFilter, d.lodMinClamp, d.lodMaxClamp, d.compare, d.maxAnisotropy)
+
+else:
+  proc wgpuDeviceCreateSampler(device: DevicePtr, descriptor: ptr SamplerDescriptor): SamplerPtr {.w.}
+
+  proc createSampler*(device: Device, descriptor: SamplerDescriptor): Sampler {.inline.} =
+    wgpuDeviceCreateSampler(device.p, addr descriptor).toShared
+
+  proc createSampler*(device: Device): Sampler {.inline.} =
+    wgpuDeviceCreateSampler(device.p, nil).toShared
 
 when defined(wasm):
   proc createShaderModule*(device: Device, code: cstring): ShaderModule {.importwasmp: "createShaderModule({code:_nimsj($1)})".}
 else:
-  proc wgpuDeviceCreateShaderModule(device: Device, descriptor: ptr ShaderModuleDescriptor): ShaderModule {.w.}
+  proc wgpuDeviceCreateShaderModule(device: DevicePtr, descriptor: ptr ShaderModuleDescriptor): ShaderModulePtr {.w.}
   proc createShaderModule*(device: Device, descriptor: ShaderModuleDescriptor): ShaderModule {.inline.} =
-    wgpuDeviceCreateShaderModule(device, addr descriptor)
+    wgpuDeviceCreateShaderModule(device.p, addr descriptor).toShared
   proc createShaderModule*(device: Device, code: cstring): ShaderModule {.inline.} =
     var shaderDesc: ShaderModuleDescriptor
     var shaderCodeDesc: ShaderModuleWGSLDescriptor
@@ -931,18 +1216,26 @@ else:
 
 when defined(wasm):
   proc createPipelineLayout*(device: Device): PipelineLayout {.importwasmp: "createPipelineLayout({bindGroupLayouts:[]})".}
+  proc createPipelineLayout(device: Device, entries: JSObj): PipelineLayout {.importwasmp: "createPipelineLayout({bindGroupLayouts:_nimo[$1]})".}
+  proc addBindGroupLayout(t: JSObj, idx: int32, l: JSObj) {.importwasmraw: "_nimo[$0][$1] = _nimo[$2]".}
+  proc createPipelineLayout*(device: Device, descriptor: PipelineLayoutDescriptor): PipelineLayout =
+    let entries = makeJsArray(descriptor.bindGroupLayoutCount)
+    for i in 0 ..< descriptor.bindGroupLayoutCount.int:
+      let e = ptrArrayElem(descriptor.bindGroupLayouts, i)
+      addBindGroupLayout(entries, i.int32, e[])
+    createPipelineLayout(device, entries)
 else:
-  proc wgpuDeviceCreatePipelineLayout(device: Device, descriptor: ptr PipelineLayoutDescriptor): PipelineLayout {.w.}
+  proc wgpuDeviceCreatePipelineLayout(device: DevicePtr, descriptor: ptr PipelineLayoutDescriptor): PipelineLayoutPtr {.w.}
 
   proc createPipelineLayout*(device: Device, descriptor: PipelineLayoutDescriptor): PipelineLayout {.inline.} =
-    wgpuDeviceCreatePipelineLayout(device, addr descriptor)
+    wgpuDeviceCreatePipelineLayout(device.p, addr descriptor).toShared
   proc createPipelineLayout*(device: Device): PipelineLayout {.inline.} =
     var d: PipelineLayoutDescriptor
-    wgpuDeviceCreatePipelineLayout(device, addr d)
+    wgpuDeviceCreatePipelineLayout(device.p, addr d).toShared
 
 # Methods of Queue
 # # WGPU_EXPORT void wgpuQueueOnSubmittedWorkDone(WGPUQueue queue, WGPUQueueWorkDoneCallback callback, void * userdata);
-# proc setLabel*(queue: Queue, label: cstring) {.w, importc: "wgpuQueueSetLabel".}
+# proc setLabel*(queue: QueuePtr, label: cstring) {.w, importc: "wgpuQueueSetLabel".}
 
 when defined(wasm):
   proc submit(queue: Queue, n: int32, command: ptr CommandBuffer) {.importwasmraw: """
@@ -954,10 +1247,10 @@ when defined(wasm):
   proc submit*(queue: Queue, commands: openarray[CommandBuffer]) {.inline.} =
     submit(queue, commands.len.int32, cast[ptr CommandBuffer](addr commands))
 else:
-  proc wgpuQueueSubmit(queue: Queue, commandCount: uint32, commands: ptr CommandBuffer) {.w.}
+  proc wgpuQueueSubmit(queue: QueuePtr, commandCount: uint32, commands: ptr CommandBufferPtr) {.w.}
   proc submit*(queue: Queue, commandCount: int, commands: ptr CommandBuffer) {.inline.} =
-    wgpuQueueSubmit(queue, commandCount.uint32, commands)
-  proc submit*(queue: Queue, command: CommandBuffer) {.inline.} = wgpuQueueSubmit(queue, 1, addr command)
+    wgpuQueueSubmit(queue.p, commandCount.uint32, cast[ptr CommandBufferPtr](commands))
+  proc submit*(queue: Queue, command: CommandBuffer) {.inline.} = submit(queue, 1, addr command)
   proc submit*(queue: Queue, commands: openarray[CommandBuffer]) {.inline.} = submit(queue, commands.len, cast[ptr CommandBuffer](addr commands))
 
 when defined(wasm):
@@ -965,30 +1258,30 @@ when defined(wasm):
   _nimo[$0].writeBuffer(_nimo[$1], $2, _nima.buffer, $3, $4)
   """.}
 else:
-  proc wgpuQueueWriteBuffer(queue: Queue, buffer: Buffer, bufferOffset: uint64, data: pointer, size: csize_t) {.w.}
+  proc wgpuQueueWriteBuffer(queue: QueuePtr, buffer: BufferPtr, bufferOffset: uint64, data: pointer, size: csize_t) {.w.}
   proc writeBuffer*(queue: Queue, buffer: Buffer, bufferOffset: int, data: pointer, size: int) {.inline.} =
-    wgpuQueueWriteBuffer(queue, buffer, bufferOffset.uint64, data, size.csize_t)
+    wgpuQueueWriteBuffer(queue.p, buffer.p, bufferOffset.uint64, data, size.csize_t)
 
 # # WGPU_EXPORT void wgpuQueueWriteTexture(WGPUQueue queue, WGPUImageCopyTexture const * destination, void const * data, size_t dataSize, WGPUTextureDataLayout const * dataLayout, WGPUExtent3D const * writeSize);
 
 # Methods of CommandEncoder
 # WGPU_EXPORT WGPUComputePassEncoder wgpuCommandEncoderBeginComputePass(WGPUCommandEncoder commandEncoder, WGPUComputePassDescriptor const * descriptor /* nullable */);
 when defined(wasm):
-  proc beginRenderPass(e: CommandEncoder, c: JSObj): RenderPassEncoder {.importwasmp: """beginRenderPass({colorAttachments: _nimo[$1]})""".}
+  proc beginRenderPass(e: CommandEncoder, c: JSObj): RenderPassEncoder {.importwasmp: "beginRenderPass({colorAttachments: _nimo[$1]})".}
 
   proc addColorAttachment(a: JSObj, i: int32, tv: TextureView, cr, cg, cb, ca: float) {.importwasmraw: """
   _nimo[$0][$1] = {view: _nimo[$2], clearValue: {r: $3, g: $4, b: $5, a: $6}, loadOp: 'clear', storeOp: 'store'}
   """}
-  proc wgpuCommandEncoderBeginRenderPass(commandEncoder: CommandEncoder, d: ptr RenderPassDescriptor): RenderPassEncoder =
+  proc beginRenderPass*(commandEncoder: CommandEncoder, d: RenderPassDescriptor): RenderPassEncoder =
     let colorAttachments = makeJsArray(d.colorAttachmentCount)
     let tt = cast[ptr UncheckedArray[RenderPassColorAttachment]](d.colorAttachments)
     for i in 0 ..< d.colorAttachmentCount.int:
       addColorAttachment(colorAttachments, i.int32, tt[i].view, tt[i].clearValue.r, tt[i].clearValue.g, tt[i].clearValue.b, tt[i].clearValue.a)
     beginRenderPass(commandEncoder, colorAttachments)
 else:
-  proc wgpuCommandEncoderBeginRenderPass(commandEncoder: CommandEncoder, descriptor: ptr RenderPassDescriptor): RenderPassEncoder {.w.}
-proc beginRenderPass*(commandEncoder: CommandEncoder, descriptor: RenderPassDescriptor): RenderPassEncoder {.inline.} =
-  wgpuCommandEncoderBeginRenderPass(commandEncoder, addr descriptor)
+  proc wgpuCommandEncoderBeginRenderPass(commandEncoder: CommandEncoderPtr, descriptor: ptr RenderPassDescriptor): RenderPassEncoderPtr {.w.}
+  proc beginRenderPass*(commandEncoder: CommandEncoder, descriptor: RenderPassDescriptor): RenderPassEncoder {.inline.} =
+    wgpuCommandEncoderBeginRenderPass(commandEncoder.p, addr descriptor).toShared
 
 # # WGPU_EXPORT void wgpuCommandEncoderClearBuffer(WGPUCommandEncoder commandEncoder, WGPUBuffer buffer, uint64_t offset, uint64_t size);
 # # WGPU_EXPORT void wgpuCommandEncoderCopyBufferToBuffer(WGPUCommandEncoder commandEncoder, WGPUBuffer source, uint64_t sourceOffset, WGPUBuffer destination, uint64_t destinationOffset, uint64_t size);
@@ -998,12 +1291,12 @@ proc beginRenderPass*(commandEncoder: CommandEncoder, descriptor: RenderPassDesc
 when defined(wasm):
   proc finish*(commandEncoder: CommandEncoder): CommandBuffer {.importwasmm.}
 else:
-  proc wgpuCommandEncoderFinish(commandEncoder: CommandEncoder, descriptor: ptr CommandBufferDescriptor): CommandBuffer {.w.}
+  proc wgpuCommandEncoderFinish(commandEncoder: CommandEncoderPtr, descriptor: ptr CommandBufferDescriptor): CommandBufferPtr {.w.}
   proc finish*(commandEncoder: CommandEncoder, descriptor: CommandBufferDescriptor): CommandBuffer {.inline.} =
-    wgpuCommandEncoderFinish(commandEncoder, addr descriptor)
-  proc finish*(commandEncoder: CommandEncoder): CommandBuffer {.inline.} = wgpuCommandEncoderFinish(commandEncoder, nil)
+    wgpuCommandEncoderFinish(commandEncoder.p, addr descriptor).toShared
+  proc finish*(commandEncoder: CommandEncoder): CommandBuffer {.inline.} = wgpuCommandEncoderFinish(commandEncoder.p, nil).toShared
 
-# proc insertDebugMarker*(commandEncoder: CommandEncoder, markerLabel: cstring) {.w, importc: "wgpuCommandEncoderInsertDebugMarker".}
+# proc insertDebugMarker*(commandEncoder: CommandEncoderPtr, markerLabel: cstring) {.w, importc: "wgpuCommandEncoderInsertDebugMarker".}
 # # WGPU_EXPORT void wgpuCommandEncoderPopDebugGroup(WGPUCommandEncoder commandEncoder);
 # # WGPU_EXPORT void wgpuCommandEncoderPushDebugGroup(WGPUCommandEncoder commandEncoder, char const * groupLabel);
 # # WGPU_EXPORT void wgpuCommandEncoderResolveQuerySet(WGPUCommandEncoder commandEncoder, WGPUQuerySet querySet, uint32_t firstQuery, uint32_t queryCount, WGPUBuffer destination, uint64_t destinationOffset);
@@ -1014,13 +1307,17 @@ else:
 when defined(wasm):
   discard
 else:
-  proc getPreferredFormat*(surface: Surface, adapter: Adapter): TextureFormat {.w, importc: "wgpuSurfaceGetPreferredFormat".}
+  proc wgpuSurfaceGetPreferredFormat(surface: SurfacePtr, adapter: AdapterPtr): TextureFormat {.w.}
+  proc getPreferredFormat*(surface: Surface, adapter: Adapter): TextureFormat {.inline.} =
+    wgpuSurfaceGetPreferredFormat(surface.p, adapter.p)
 
   # Methods of SwapChain
-  proc getCurrentTextureView*(swapChain: SwapChain): TextureView {.w, importc: "wgpuSwapChainGetCurrentTextureView".}
-  proc present*(swapChain: SwapChain) {.w, importc: "wgpuSwapChainPresent".}
-
-  proc wgpuTextureViewDrop*(t: TextureView) {.w.}
+  proc wgpuSwapChainGetCurrentTextureView(swapChain: SwapChainPtr): TextureViewPtr {.w.}
+  proc getCurrentTextureView*(swapChain: SwapChain): TextureView {.inline.} =
+    wgpuSwapChainGetCurrentTextureView(swapChain.p).toSharedRetain
+  proc wgpuSwapChainPresent(swapChain: SwapChainPtr) {.w.}
+  proc present*(swapChain: SwapChain) {.inline.} =
+    wgpuSwapChainPresent(swapChain.p)
 
 # # Methods of RenderPassEncoder
 # # WGPU_EXPORT void wgpuRenderPassEncoderBeginOcclusionQuery(WGPURenderPassEncoder renderPassEncoder, uint32_t queryIndex);
@@ -1028,7 +1325,10 @@ else:
 when defined(wasm):
   proc draw*(renderPassEncoder: RenderPassEncoder, vertexCount, instanceCount, firstVertex, firstInstance: uint32) {.importwasmm.}
 else:
-  proc draw*(renderPassEncoder: RenderPassEncoder, vertexCount, instanceCount, firstVertex, firstInstance: uint32) {.w, importc: "wgpuRenderPassEncoderDraw".}
+  proc wgpuRenderPassEncoderDraw(renderPassEncoder: RenderPassEncoderPtr, vertexCount, instanceCount, firstVertex, firstInstance: uint32) {.w.}
+  proc draw*(renderPassEncoder: RenderPassEncoder, vertexCount, instanceCount, firstVertex, firstInstance: uint32) {.inline.} =
+    wgpuRenderPassEncoderDraw(renderPassEncoder.p, vertexCount, instanceCount, firstVertex, firstInstance)
+
 
 # # WGPU_EXPORT void wgpuRenderPassEncoderDrawIndexed(WGPURenderPassEncoder renderPassEncoder, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance);
 # # WGPU_EXPORT void wgpuRenderPassEncoderDrawIndexedIndirect(WGPURenderPassEncoder renderPassEncoder, WGPUBuffer indirectBuffer, uint64_t indirectOffset);
@@ -1036,14 +1336,31 @@ else:
 when defined(wasm):
   proc finish*(renderPassEncoder: RenderPassEncoder) {.importwasmm: "end".}
 else:
-  proc finish*(renderPassEncoder: RenderPassEncoder) {.w, importc: "wgpuRenderPassEncoderEnd".}
+  proc wgpuRenderPassEncoderEnd(renderPassEncoder: RenderPassEncoderPtr) {.w.}
+  proc finish*(renderPassEncoder: RenderPassEncoder) {.inline.} = wgpuRenderPassEncoderEnd(renderPassEncoder.p)
+
 # # WGPU_EXPORT void wgpuRenderPassEncoderEndOcclusionQuery(WGPURenderPassEncoder renderPassEncoder);
 # # WGPU_EXPORT void wgpuRenderPassEncoderEndPipelineStatisticsQuery(WGPURenderPassEncoder renderPassEncoder);
 # # WGPU_EXPORT void wgpuRenderPassEncoderExecuteBundles(WGPURenderPassEncoder renderPassEncoder, uint32_t bundlesCount, WGPURenderBundle const * bundles);
 # # WGPU_EXPORT void wgpuRenderPassEncoderInsertDebugMarker(WGPURenderPassEncoder renderPassEncoder, char const * markerLabel);
 # # WGPU_EXPORT void wgpuRenderPassEncoderPopDebugGroup(WGPURenderPassEncoder renderPassEncoder);
 # # WGPU_EXPORT void wgpuRenderPassEncoderPushDebugGroup(WGPURenderPassEncoder renderPassEncoder, char const * groupLabel);
-# # WGPU_EXPORT void wgpuRenderPassEncoderSetBindGroup(WGPURenderPassEncoder renderPassEncoder, uint32_t groupIndex, WGPUBindGroup group, uint32_t dynamicOffsetCount, uint32_t const * dynamicOffsets);
+
+when defined(wasm):
+  proc setBindGroup*(renderPassEncoder: RenderPassEncoder, groupIndex: uint32, group: BindGroup) {.importwasmm.}
+
+  proc setBindGroup(renderPassEncoder: RenderPassEncoder, groupIndex, offsets, count: uint32, group: BindGroup) {.importwasmraw: """
+_nimo[$0].setBindGroup($1, _nimo[$4], new Uint32Array(_nima.buffer, $2, $3))
+""".}
+
+  discard
+else:
+  proc wgpuRenderPassEncoderSetBindGroup(renderPassEncoder: RenderPassEncoderPtr, groupIndex: uint32, group: BindGroupPtr, dynamicOffsetCount: uint32, dynamicOffsets: ptr uint32) {.w.}
+  proc setBindGroup*(renderPassEncoder: RenderPassEncoder, groupIndex: uint32, group: BindGroup, dynamicOffsets: openarray[uint32]) {.inline.} =
+    wgpuRenderPassEncoderSetBindGroup(renderPassEncoder.p, groupIndex, group.p, dynamicOffsets.len.uint32, cast[ptr uint32](addr dynamicOffsets))
+  proc setBindGroup*(renderPassEncoder: RenderPassEncoder, groupIndex: uint32, group: BindGroup) {.inline.} =
+    wgpuRenderPassEncoderSetBindGroup(renderPassEncoder.p, groupIndex, group.p, 0, nil)
+
 # # WGPU_EXPORT void wgpuRenderPassEncoderSetBlendConstant(WGPURenderPassEncoder renderPassEncoder, WGPUColor const * color);
 # # WGPU_EXPORT void wgpuRenderPassEncoderSetIndexBuffer(WGPURenderPassEncoder renderPassEncoder, WGPUBuffer buffer, WGPUIndexFormat format, uint64_t offset, uint64_t size);
 # WGPU_EXPORT void wgpuRenderPassEncoderSetLabel(WGPURenderPassEncoder renderPassEncoder, char const * label);
@@ -1060,6 +1377,18 @@ when defined(wasm):
     renderPassEncoder.setVertexBuffer(slot, buffer, offset.uint32, size.uint32)
 
 else:
-  proc setVertexBuffer*(renderPassEncoder: RenderPassEncoder, slot: uint32, buffer: Buffer, offset, size: uint64) {.w, importc: "wgpuRenderPassEncoderSetVertexBuffer".}
+  proc wgpuRenderPassEncoderSetVertexBuffer(renderPassEncoder: RenderPassEncoderPtr, slot: uint32, buffer: BufferPtr, offset, size: uint64) {.w.}
+
+  proc setVertexBuffer*(renderPassEncoder: RenderPassEncoder, slot: uint32, buffer: Buffer, offset, size: uint64) {.inline.} =
+    wgpuRenderPassEncoderSetVertexBuffer(renderPassEncoder.p, slot, buffer.p, offset, size)
+
 
 # # WGPU_EXPORT void wgpuRenderPassEncoderSetViewport(WGPURenderPassEncoder renderPassEncoder, float x, float y, float width, float height, float minDepth, float maxDepth);
+
+# Methods of RenderPipeline
+when defined(wasm):
+  proc getBindGroupLayout*(renderPipeline: RenderPipeline, groupIndex: uint32): BindGroupLayout {.importwasmm.}
+else:
+  proc getBindGroupLayout*(renderPipeline: RenderPipeline, groupIndex: uint32): BindGroupLayout {.w, importc: "wgpuRenderPipelineGetBindGroupLayout".}
+
+# WGPU_EXPORT void wgpuRenderPipelineSetLabel(WGPURenderPipeline renderPipeline, char const * label);
