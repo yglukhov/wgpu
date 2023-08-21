@@ -514,11 +514,11 @@ type
 
   TextureUsage* {.size: sizeof(cint).} = enum
     # none = 0x00000000,
-    copySrc# = 0x00000001,
-    copyDst# = 0x00000002,
-    textureBinding# = 0x00000004,
-    storageBinding# = 0x00000008,
-    renderAttachment# = 0x00000010,
+    tuCopySrc# = 0x00000001,
+    tuCopyDst# = 0x00000002,
+    tuTextureBinding# = 0x00000004,
+    tuStorageBinding# = 0x00000008,
+    tuRenderAttachment# = 0x00000010,
 
   ChainedStruct* {.inheritable, pure.} = object
     next*: ptr ChainedStruct
@@ -584,6 +584,11 @@ type
     mask*: uint32
     alphaToCoverageEnabled*: bool
 
+  Origin3D* = object
+    x*: uint32
+    y*: uint32
+    z*: uint32
+
   RequiredLimits* = object
     nextInChain*: ptr ChainedStruct
     limits*: Limits
@@ -594,10 +599,27 @@ type
     hintCount*: uint32
     hints*: ptr ShaderModuleCompilationHint
 
+  TextureDescriptor * = object
+    nextInChain*: ptr ChainedStruct
+    label*: cstring # nullable
+    usage*: set[TextureUsage]
+    dimension*: TextureDimension
+    size*: Extent3D
+    format*: TextureFormat
+    mipLevelCount*: uint32
+    sampleCount*: uint32
+    viewFormatCount*: uint32
+    viewFormats*: ptr TextureFormat
+
   ConstantEntry* = object
     nextInChain*: ptr ChainedStruct
     key*: cstring
     value*: float
+
+  Extent3D* = object
+    width*: uint32
+    height*: uint32
+    depthOrArrayLayers*: uint32
 
   InstanceDescriptor* = object
     nextInChain*: ptr ChainedStruct
@@ -772,6 +794,23 @@ type
     height*: uint32
     presentMode*: PresentMode
 
+  TextureDataLayout* = object
+    nextInChain*: ptr ChainedStruct
+    offset*: uint64
+    bytesPerRow*: uint32
+    rowsPerImage*: uint32
+
+  TextureViewDescriptor* = object
+    nextInChain*: ptr ChainedStruct
+    label*: cstring # nullable
+    format*: TextureFormat
+    dimension*: TextureViewDimension
+    baseMipLevel*: uint32
+    mipLevelCount*: uint32
+    baseArrayLayer*: uint32
+    arrayLayerCount*: uint32
+    aspect*: TextureAspect
+
   TextureBindingLayout* = object
     nextInChain*: ptr ChainedStruct
     sampleType*: TextureSampleType
@@ -816,6 +855,13 @@ type
     depthBiasSlopeScale*: float32
     depthBiasClamp*: float32
 
+  ImageCopyTexture* = object
+    nextInChain*: ptr ChainedStruct
+    texture*: Texture
+    mipLevel*: uint32
+    origin*: Origin3D
+    aspect*: TextureAspect
+
   VertexState* = object
     nextInChain*: ptr ChainedStruct
     module*: ShaderModule
@@ -849,6 +895,8 @@ type
 const
   cwmAll* = {cwmRed, cwmGreen, cwmBlue, cwmAlpha}
 
+proc extent3d*(x, y, z: uint32): Extent3D {.inline.} = Extent3D(width: x, height: y, depthOrArrayLayers: z)
+
 when defined(wasm):
   proc init() {.importwasmraw: """
  // AddressMode
@@ -873,10 +921,18 @@ window._nimwcF = ["nearest","linear"];
 window._nimwcC = [,"never","less","less-equal","greater","greater-equal","equal","not-equal","always"];
  // VertexStepMode
 window._nimwcs = ["vertex","instance"];
+ // TextureDimension
+window._nimwcd = ["1d","2d","3d"];
+ // TextureViewDimension
+window._nimwcD = ["1d","2d","2d-array","cube","cube-array","3d"];
+ // TextureSampleType
+window._nimwcS = ["float","unfilterable-float","depth","sint","uint"];
 """.}
   init()
 elif defined(linux):
-  {.pragma: w, dynlib: "./wgpu/linux-x86_64/libwgpu_native.so", importc.}
+  import std/[strutils, os]
+  const thisPath = currentSourcePath.rsplit({DirSep, AltSep}, 1)[0]
+  {.pragma: w, dynlib: thisPath & "/wgpu/linux-x86_64/libwgpu_native.so", importc.}
 
 when not defined(wasm):
   proc retain*(v: AdapterPtr) {.w, importc: "wgpuAdapterReference".}
@@ -928,6 +984,7 @@ when not defined(wasm):
 
   proc `=destroy`*[T](s: var SharedPtr[T]) =
     if not s.p.isNil:
+      echo "release"
       release(s.p)
       s.p = nil
 
@@ -1076,7 +1133,6 @@ when defined(wasm):
         if res.isNil:
           res = e.textureView.o
       addBindgroupEntry(entries, i.int32, e.binding, uint32(e.offset), uint32(e.size), res)
-    log(descriptor.layout)
     createBindGroup(device, descriptor.layout, entries)
 
 else:
@@ -1090,6 +1146,7 @@ when defined(wasm):
   """.}
 
   proc addBindgroupLayoutEntryBuffer(t: JSObj, idx: int32, binding, visibility: uint32, k: BufferBindingType, hdo: bool, mbs: uint32) {.importwasmraw: "_nimo[$0][$1] = {binding: $2, visibility: $3, buffer: {type: _nimwcb[$4], hasDynamicOffset: $5, minBindingSize: $6}}".}
+  proc addBindgroupLayoutEntryTexture(t: JSObj, idx: int32, binding, visibility: uint32, s, d: int32, multisampled: int32) {.importwasmraw: "_nimo[$0][$1] = {binding: $2, visibility: $3, texture: {sampleType: _nimwcS[$4], viewDimension: _nimwcD[$5], multisampled: $6}}".}
 
   proc createBindGroupLayout*(device: Device, descriptor: BindGroupLayoutDescriptor): BindGroupLayout =
     let entryCount = descriptor.entryCount
@@ -1098,8 +1155,11 @@ when defined(wasm):
       let e = ptrArrayElem(descriptor.entries, i)
       if e.buffer.kind != bbtUndefined:
         addBindgroupLayoutEntryBuffer(entries, i.int32, e.binding, cast[uint32](e.visibility), e.buffer.kind, e.buffer.hasDynamicOffset, uint32(e.buffer.minBindingSize))
+      elif e.texture.sampleType != tstUndefined:
+        addBindGroupLayoutEntryTexture(entries, i.int32, e.binding, cast[uint32](e.visibility), cast[int32](e.texture.sampleType) - 1, cast[int32](e.texture.viewDimension) - 1, e.texture.multisampled.int32)
       else:
         assert(false, "Not implemented")
+    log(entries)
     createBindGroupLayout(device, entries)
 
 else:
@@ -1186,6 +1246,17 @@ else:
     wgpuDeviceCreateRenderPipeline(device.p, addr descriptor).toShared
 
 when defined(wasm):
+  proc createTexture(device: Device, w, h, z, m, s: uint32, d: TextureDimension, f: TextureFormat, u: set[TextureUsage]): Texture {.importwasmp: """
+createTexture({size: {width: $1, height: $2, depthOrArrayLayers: $3}, mipLevelCount: $4, sampleCount: $5, dimension: _nimwcd[$6], format: _nimwct[$7], usage: $8, viewFormats: []})
+"""}
+  proc createTexture*(device: Device, d: TextureDescriptor): Texture {.inline.} =
+    device.createTexture(d.size.width, d.size.height, d.size.depthOrArrayLayers, d.mipLevelCount, d.sampleCount, d.dimension, d.format, d.usage)
+else:
+  proc wgpuDeviceCreateTexture(device: DevicePtr, descriptor: ptr TextureDescriptor): TexturePtr {.w.}
+  proc createTexture*(device: Device, descriptor: TextureDescriptor): Texture {.inline.} =
+    wgpuDeviceCreateTexture(device.p, addr descriptor).toShared
+
+when defined(wasm):
   proc createSampler*(device: Device): Sampler {.importwasmm.}
   proc createSampler(device: Device, u, v, w: AddressMode, magf, minf: FilterMode, mf: MipmapFilterMode, lmin, lmax: float32, c: CompareFunction, a: uint32): Sampler {.importwasmp: """
   createSampler({addressModeU: _nimwca[$1], addressModeV: _nimwca[$2], addressModeW: _nimwca[$3], magFilter: _nimwcF[$4], minFilter: _nimwcF[$5], mipmapFilter: _nimwcF[$6], lodMinClamp: $7, lodMaxClamp: $8, compare: _nimwcC[$9], maxAnisotropy: $10})
@@ -1264,7 +1335,17 @@ else:
   proc writeBuffer*(queue: Queue, buffer: Buffer, bufferOffset: int, data: pointer, size: int) {.inline.} =
     wgpuQueueWriteBuffer(queue.p, buffer.p, bufferOffset.uint64, data, size.csize_t)
 
-# # WGPU_EXPORT void wgpuQueueWriteTexture(WGPUQueue queue, WGPUImageCopyTexture const * destination, void const * data, size_t dataSize, WGPUTextureDataLayout const * dataLayout, WGPUExtent3D const * writeSize);
+when defined(wasm):
+  proc writeTexture(queue: Queue, t: Texture, p: pointer, s, o, bpr, rpi, w, h, z: uint32) {.importwasmraw: """
+  _nimo[$0].writeTexture({texture: _nimo[$1]}, new Uint8Array(_nime.memory.buffer, $2, $3), {offset: $4, bytesPerRow: $5, rowsPerImage: $6}, {width: $7, height: $8, depthOrArrayLayers: $9})
+  """.}
+
+  proc writeTexture*(queue: Queue, destination: ImageCopyTexture, data: pointer, dataSize: int, dataLayout: TextureDataLayout, writeSize: Extent3D) {.inline.} =
+    queue.writeTexture(destination.texture, data, dataSize.uint32, dataLayout.offset.uint32, dataLayout.bytesPerRow, dataLayout.rowsPerImage, writeSize.width, writeSize.height, writeSize.depthOrArrayLayers)
+else:
+  proc wgpuQueueWriteTexture(queue: Queue, destination: ptr ImageCopyTexture, data: pointer, dataSize: csize_t, dataLayout: ptr TextureDataLayout, writeSize: ptr Extent3D) {.w.}
+  proc writeTexture*(queue: Queue, destination: ImageCopyTexture, data: pointer, dataSize: int, dataLayout: TextureDataLayout, writeSize: Extent3D) {.inline.} =
+    wgpuQueueWriteTexture(queue, addr destination, data, dataSize.csize_t, addr dataLayout, addr writeSize)
 
 # Methods of CommandEncoder
 # WGPU_EXPORT WGPUComputePassEncoder wgpuCommandEncoderBeginComputePass(WGPUCommandEncoder commandEncoder, WGPUComputePassDescriptor const * descriptor /* nullable */);
@@ -1320,6 +1401,26 @@ else:
   proc wgpuSwapChainPresent(swapChain: SwapChainPtr) {.w.}
   proc present*(swapChain: SwapChain) {.inline.} =
     wgpuSwapChainPresent(swapChain.p)
+
+# Methods of Texture
+when defined(wasm):
+  proc createView*(t: Texture): TextureView {.importwasmm.}
+else:
+  proc wgpuTextureCreateView(texture: TexturePtr, descriptor: ptr TextureViewDescriptor): TextureViewPtr {.w.}
+  proc createView*(texture: Texture, descriptor: TextureViewDescriptor): TextureView {.inline.} =
+    wgpuTextureCreateView(texture.p, addr descriptor).toShared
+  proc createView*(texture: Texture): TextureView {.inline.} =
+    wgpuTextureCreateView(texture.p, nil).toShared
+
+when defined(wasm):
+  discard
+else:
+  proc depthOrArrayLayers*(texture: Texture): uint32 {.w, importc: "wgpuTextureGetDepthOrArrayLayers".}
+  proc dimension*(texture: Texture): TextureDimension  {.w, importc: "wgpuTextureGetDimension".}
+  proc format*(texture: Texture): TextureFormat  {.w, importc: "wgpuTextureGetFormat".}
+  proc height*(texture: Texture): uint32 {.w, importc: "wgpuTextureGetHeight".}
+  proc width*(texture: Texture): uint32 {.w, importc: "wgpuTextureGetWidth".}
+
 
 # # Methods of RenderPassEncoder
 # # WGPU_EXPORT void wgpuRenderPassEncoderBeginOcclusionQuery(WGPURenderPassEncoder renderPassEncoder, uint32_t queryIndex);
@@ -1384,8 +1485,15 @@ else:
   proc setVertexBuffer*(renderPassEncoder: RenderPassEncoder, slot: uint32, buffer: Buffer, offset, size: uint64) {.inline.} =
     wgpuRenderPassEncoderSetVertexBuffer(renderPassEncoder.p, slot, buffer.p, offset, size)
 
+proc setVertexBuffer*(renderPassEncoder: RenderPassEncoder, slot: uint32, buffer: Buffer, offset: uint64 = 0) {.inline.} =
+  renderPassEncoder.setVertexBuffer(slot, buffer, offset, buffer.size - offset)
 
-# # WGPU_EXPORT void wgpuRenderPassEncoderSetViewport(WGPURenderPassEncoder renderPassEncoder, float x, float y, float width, float height, float minDepth, float maxDepth);
+when defined(wasm):
+  discard
+else:
+  proc wgpuRenderPassEncoderSetViewport(renderPassEncoder: RenderPassEncoderPtr, x, y, width, height, minDepth, maxDepth: float32) {.w.}
+  proc setViewport*(renderPassEncoder: RenderPassEncoder, x, y, width, height, minDepth, maxDepth: float32) {.inline.} =
+    wgpuRenderPassEncoderSetViewport(renderPassEncoder.p, x, y, width, height, minDepth, maxDepth)
 
 # Methods of RenderPipeline
 when defined(wasm):

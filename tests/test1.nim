@@ -162,8 +162,8 @@ proc renderFrame(d: Device, context: Context, textureView: TextureView) =
   renderPassDesc.colorAttachments = addr renderPassColorAttachment
   var renderPass = encoder.beginRenderPass(renderPassDesc)
   renderPass.setPipeline(context.pipeline)
-  renderPass.setVertexBuffer(0, context.vertexBuffer, 0, context.vertexBuffer.size)
-  renderPass.setVertexBuffer(1, context.instanceBuffer, 0, context.instanceBuffer.size)
+  renderPass.setVertexBuffer(0, context.vertexBuffer)
+  renderPass.setVertexBuffer(1, context.instanceBuffer)
   renderPass.draw(vertexData.len.uint32, 2, 0, 0)
   renderPass.finish()
 
@@ -255,7 +255,7 @@ else:
     swapChainDesc.width = winWidth
     swapChainDesc.height = winHeight
     swapChainDesc.format = swapChainFormat
-    swapChainDesc.usage = {renderAttachment}
+    swapChainDesc.usage = {tuRenderAttachment}
     swapChainDesc.presentMode = pmImmediate
     d.createSwapChain(surface, swapChainDesc)
 
