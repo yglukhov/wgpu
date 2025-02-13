@@ -250,36 +250,50 @@ else:
     else:
       {.error: "Unknown platworm".}
 
-  proc createSwapChain(d: Device, surface: Surface, swapChainFormat: TextureFormat): Swapchain =
-    var swapChainDesc: SwapChainDescriptor
-    swapChainDesc.width = winWidth
-    swapChainDesc.height = winHeight
-    swapChainDesc.format = swapChainFormat
-    swapChainDesc.usage = {tuRenderAttachment}
-    swapChainDesc.presentMode = pmImmediate
-    d.createSwapChain(surface, swapChainDesc)
+  proc createTextureView(t: Texture): TextureView =
+    var viewDescriptor: TextureViewDescriptor
+    viewDescriptor.format = t.format
+    viewDescriptor.dimension = tvd2D
+    viewDescriptor.baseMipLevel = 0
+    viewDescriptor.mipLevelCount = 1
+    viewDescriptor.baseArrayLayer = 0
+    viewDescriptor.arrayLayerCount = 1
+    viewDescriptor.aspect = taAll
+    t.createView(viewDescriptor)
+
+  proc getPreferredFormat(surface: Surface, adapter: Adapter): TextureFormat =
+    var caps: SurfaceCapabilities
+    surface.getCapabilities(adapter, caps)
+    caps.formats[0]
 
   proc mainLoop(a: Adapter, d: Device, surface: Surface, w: glfw.Window) =
-    d.setUncapturedErrorCallback(proc(e: ErrorType, message: cstring, data: pointer) {.cdecl.} =
-      echo "Error: ", e, ": ", message
-      writeStackTrace()
-    )
-
     let swapChainFormat = surface.getPreferredFormat(a)
-    let swapChain = createSwapChain(d, surface, swapchainFormat)
+    # let swapChain = createSwapChain(d, surface, swapchainFormat)
     var context: Context
     init(context, d, swapChainFormat)
 
     while windowShouldClose(w) == 0:
       pollEvents()
-      let nextTexture = swapChain.getCurrentTextureView()
-      if nextTexture.isNil:
+      var t: SurfaceTexture
+      surface.getCurrentTexture(t)
+      if t.status == gctsSuccess:
+        let nextTexture = t.texture.createTextureView()
+        renderFrame(d, context, nextTexture)
+        surface.present()
+      else:
         echo "Error getting next swap chain texture"
         break
 
-      renderFrame(d, context, nextTexture)
       # wgpuTextureViewDrop(nextTexture)
-      swapChain.present()
+
+  proc configureSurface(d: Device, a: Adapter, s: Surface) =
+    var c: SurfaceConfiguration
+    c.width = winWidth
+    c.height = winHeight
+    c.device = d
+    c.format = s.getPreferredFormat(a)
+    c.usage = {tuRenderAttachment}
+    s.configure(c)
 
   proc main() {.async.} =
     discard glfw.init()
@@ -295,8 +309,12 @@ else:
     let a = await i.requestAdapter(adapterOpts)
     assert(a != nil)
     var deviceOpts: DeviceDescriptor
+    deviceOpts.uncapturedErrorCallbackInfo.callback = proc(e: ErrorType, message: cstring, data: pointer) {.cdecl.} =
+      echo "Uncaptured rrror: ", e, ": ", message
+      writeStackTrace()
     let d = await a.requestDevice(deviceOpts)
     assert(d != nil)
+    configureSurface(d, a, surface)
     mainLoop(a, d, surface, w)
 
   waitFor main()
