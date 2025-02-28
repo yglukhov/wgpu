@@ -79,6 +79,17 @@ elif defined(linux):
   static:
     echo "DYNLIB: ", thisPath & "/wgpu/linux-x86_64/libwgpu_native.so"
   {.pragma: w, dynlib: thisPath & "/wgpu/linux-x86_64/libwgpu_native.so", importc.}
+elif defined(macosx):
+  import std/[strutils, os]
+  const thisPath = currentSourcePath.rsplit({DirSep, AltSep}, 1)[0]
+  when defined(arm64):
+    static:
+      echo "DYNLIB: ", thisPath & "/wgpu/macos-aarch64/libwgpu_native.dylib"
+    {.pragma: w, dynlib: thisPath & "/wgpu/macos-aarch64/libwgpu_native.dylib", importc.}
+  elif defined(amd64):
+    static:
+      echo "DYNLIB: ", thisPath & "/wgpu/macos-x86_64/libwgpu_native.dylib"
+    {.pragma: w, dynlib: thisPath & "/wgpu/macos-x86_64/libwgpu_native.dylib", importc.}
 
 defineTyp(Adapter)
 defineTyp(BindGroup)
