@@ -21,12 +21,14 @@ template defineTyp(t: untyped) =
     proc isNil*(v: t): bool {.inline.} = v.p.isNil
     proc `=destroy`*(v: t) =
       if not v.p.isNil:
-        # echo "RELEASE ", astToStr(t)
+        # when astToStr(t) == "Buffer":
+        #   echo "RELEASE ", astToStr(t), ": ", cast[int](v.p)
         `wgpu t Release`(v.p)
     proc `=copy`*(dst: var t, src: t) =
       if dst.p != src.p:
         if not src.p.isNil:
-          # echo "COPY REF ", astToStr(t)
+          # when astToStr(t) == "Buffer":
+          #   echo "COPY REF ", astToStr(t), ": ", cast[int](src.p)
           `wgpu t Reference`(src.p)
         if not dst.p.isNil:
           # echo "COPY REL ", astToStr(t)
@@ -672,6 +674,10 @@ type
     hintCount*: csize_t
     hints*: ptr ShaderModuleCompilationHint
 
+  SupportedLimits* = object
+    nextInChain*: ptr ChainedStruct
+    limits*: Limits
+
   TextureDescriptor * = object
     nextInChain*: ptr ChainedStruct
     label*: cstring # nullable
@@ -1283,6 +1289,13 @@ else:
 when defined(wasm):
   discard
 else:
+  proc wgpuDeviceGetLimits(device: DevicePtr, limits: var SupportedLimits): Bool {.w.}
+  proc getLimits*(device: Device, limits: var SupportedLimits): bool {.inline.} =
+    bool(wgpuDeviceGetLimits(device.p, limits))
+
+when defined(wasm):
+  discard
+else:
   proc wgpuDevicePopErrorScope(device: DevicePtr, callback: ErrorCallback, userdata: pointer) {.w.}
   proc wgpuDevicePushErrorScope(device: DevicePtr, filter: ErrorFilter) {.w.}
 
@@ -1497,7 +1510,9 @@ else:
   proc beginRenderPass*(commandEncoder: CommandEncoder, descriptor: RenderPassDescriptor): RenderPassEncoder {.inline.} =
     wgpuCommandEncoderBeginRenderPass(commandEncoder.p, addr descriptor).toShared
 
-# # WGPU_EXPORT void wgpuCommandEncoderClearBuffer(WGPUCommandEncoder commandEncoder, WGPUBuffer buffer, uint64_t offset, uint64_t size);
+  proc wgpuCommandEncoderClearBuffer(commandEncoder: CommandEncoderPtr, buffer: BufferPtr, offset, size: uint64) {.w.}
+  proc clearBuffer*(e: CommandEncoder, b: Buffer, o, s: uint64) {.inline.} =
+    wgpuCommandEncoderClearBuffer(e.p, b.p, o, s)
 
 when defined(wasm):
   proc copyBufferToBufferAux(commandEncoder: CommandEncoder, s: Buffer, os: uint32, d: Buffer, od, sz: uint32) {.importwasmm: "copyBufferToBuffer".}
