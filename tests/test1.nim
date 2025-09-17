@@ -96,18 +96,19 @@ proc createPipeline(d: Device, swapChainFormat: TextureFormat): RenderPipeline =
 
   var vbl: array[2, VertexBufferLayout]
   vbl[0].arrayStride = sizeof(VertexAttr).uint64
+  vbl[0].stepMode = vsmVertex
   vbl[0].attributeCount = va1.len.uint32
-  vbl[0].attributes = addr va1[0]
+  vbl[0].attributes = cast[ptr UncheckedArray[VertexAttribute]](addr va1)
   vbl[1].arrayStride = sizeof(InstanceAttr).uint64
   vbl[1].stepMode = vsmInstance
   vbl[1].attributeCount = va2.len.uint32
-  vbl[1].attributes = addr va2[0]
+  vbl[1].attributes = cast[ptr UncheckedArray[VertexAttribute]](addr va2)
 
   var pipelineDesc: RenderPipelineDescriptor
   pipelineDesc.vertex.module = shaderModule
   pipelineDesc.vertex.entryPoint = "vs_main"
   pipelineDesc.vertex.bufferCount = vbl.len.uint32
-  pipelineDesc.vertex.buffers = addr vbl[0]
+  pipelineDesc.vertex.buffers = cast[ptr UncheckedArray[VertexBufferLayout]](addr vbl)
 
   pipelineDesc.primitive.topology = ptTriangleList
   pipelineDesc.primitive.stripIndexFormat = ifUndefined
@@ -131,7 +132,7 @@ proc createPipeline(d: Device, swapChainFormat: TextureFormat): RenderPipeline =
   colorTarget.writeMask = cwmAll
 
   fragmentState.targetCount = 1
-  fragmentState.targets = addr colorTarget
+  fragmentState.targets = cast[ptr UncheckedArray[ColorTargetState]](addr colorTarget)
 
   pipelineDesc.multisample.count = 1
   pipelineDesc.multisample.mask = uint32.high
@@ -153,13 +154,14 @@ proc renderFrame(d: Device, context: Context, textureView: TextureView) =
 
   var renderPassColorAttachment: RenderPassColorAttachment
   renderPassColorAttachment.view = textureView
+  renderPassColorAttachment.depthSlice = DEPTH_SLICE_UNDEFINED
   renderPassColorAttachment.loadOp = loClear
   renderPassColorAttachment.storeOp = soStore
   renderPassColorAttachment.clearValue = Color(r: 0.9, g: 0.1, b: 0.2, a: 1.0)
 
   var renderPassDesc: RenderPassDescriptor
   renderPassDesc.colorAttachmentCount = 1
-  renderPassDesc.colorAttachments = addr renderPassColorAttachment
+  renderPassDesc.colorAttachments = cast[ptr UncheckedArray[RenderPassColorAttachment]](addr renderPassColorAttachment)
   var renderPass = encoder.beginRenderPass(renderPassDesc)
   renderPass.setPipeline(context.pipeline)
   renderPass.setVertexBuffer(0, context.vertexBuffer)
@@ -171,7 +173,6 @@ proc renderFrame(d: Device, context: Context, textureView: TextureView) =
 
 when defined(wasm):
   import wasmrt
-
   type
     HTMLElement* = object of JSObj
     Document* = object of HTMLElement
@@ -189,7 +190,7 @@ when defined(wasm):
   proc `height=`(c: HTMLElement, v: int) {.importwasmp.}
 
   proc configure(c: GPUCanvasContext, d: Device, fmt: TextureFormat) {.importwasmraw: """
-  _nimo[$0].configure({device: _nimo[$1], format: _nimwct[$2]})
+  $0.configure({device: $1, format: _nimwct[$2]})
   """}
 
   proc getCurrentTexture(c: GPUCanvasContext): GPUTexture {.importwasmm.}
@@ -212,7 +213,7 @@ when defined(wasm):
     renderFrame(d, context, textureView)
 
   proc main() {.async.} =
-    let i = createInstance()
+    let i: Instance = createInstance()
     if i.isNil:
       document().write("WebGPU is not supported by your browser")
       return
@@ -234,8 +235,8 @@ else:
       proc getX11Display(): pointer {.importc: "glfwGetX11Display".}
       proc getX11Window(w: glfw.Window): uint32 {.importc: "glfwGetX11Window".}
 
-      var x11d: SurfaceDescriptorFromXlibWindow
-      x11d.sType = stSurfaceDescriptorFromXlibWindow
+      var x11d: SurfaceSourceXlibWindow
+      x11d.sType = stSurfaceSourceXlibWindow
       x11d.display = getX11Display()
       x11d.window = getX11Window(w)
       assert(x11d.display != nil)
@@ -263,7 +264,7 @@ else:
 
   proc getPreferredFormat(surface: Surface, adapter: Adapter): TextureFormat =
     var caps: SurfaceCapabilities
-    surface.getCapabilities(adapter, caps)
+    discard surface.getCapabilities(adapter, caps)
     caps.formats[0]
 
   proc mainLoop(a: Adapter, d: Device, surface: Surface, w: glfw.Window) =
@@ -276,10 +277,10 @@ else:
       pollEvents()
       var t: SurfaceTexture
       surface.getCurrentTexture(t)
-      if t.status == gctsSuccess:
+      if t.status in {gctsSuccessOptimal, gctsSuccessSuboptimal}:
         let nextTexture = t.texture.createTextureView()
         renderFrame(d, context, nextTexture)
-        surface.present()
+        discard surface.present()
       else:
         echo "Error getting next swap chain texture"
         break
@@ -309,7 +310,7 @@ else:
     let a = await i.requestAdapter(adapterOpts)
     assert(a != nil)
     var deviceOpts: DeviceDescriptor
-    deviceOpts.uncapturedErrorCallbackInfo.callback = proc(e: ErrorType, message: cstring, data: pointer) {.cdecl.} =
+    deviceOpts.uncapturedErrorCallbackInfo.callback = proc(d: Device, e: ErrorType, message: StringView, data1, data2: pointer) {.cdecl.} =
       echo "Uncaptured rrror: ", e, ": ", message
       writeStackTrace()
     let d = await a.requestDevice(deviceOpts)

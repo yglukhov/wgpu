@@ -51,10 +51,10 @@ proc init(app: var App) =
   var layoutDesc: BindGroupLayoutDescriptor
   var layoutEntries: array[1, BindGroupLayoutEntry]
   layoutDesc.entryCount = layoutEntries.len.uint32
-  layoutDesc.entries = addr layoutEntries[0]
+  layoutDesc.entries = cast[ptr UncheckedArray[BindGroupLayoutEntry]](addr layoutEntries)
 
   layoutEntries[0].visibility = {ssCompute}
-  layoutEntries[0].buffer.kind = bbtStorage
+  layoutEntries[0].buffer.typ = bbtStorage
 
   let layout = app.device.createBindGroupLayout(layoutDesc)
   assert(layout != nil)
@@ -77,7 +77,7 @@ proc init(app: var App) =
   bindGroupDescriptor.layout = layout
   var bindGroupEntries: array[1, BindGroupEntry]
   bindGroupDescriptor.entryCount = bindGroupEntries.len.uint32
-  bindGroupDescriptor.entries = addr bindGroupEntries[0]
+  bindGroupDescriptor.entries = cast[ptr UncheckedArray[BindGroupEntry]](addr bindGroupEntries)
   bindGroupEntries[0].buffer = app.buffer
   bindGroupEntries[0].size = app.buffer.size
 
@@ -164,7 +164,7 @@ else:
     let a = await i.requestAdapter(adapterOpts)
     assert(a != nil)
     var deviceOpts: DeviceDescriptor
-    deviceOpts.uncapturedErrorCallbackInfo.callback = proc(e: ErrorType, message: cstring, data: pointer) {.cdecl.} =
+    deviceOpts.uncapturedErrorCallbackInfo.callback = proc(d: Device, e: ErrorType, message: StringView, data1, data2: pointer) {.cdecl.} =
       echo "Uncaptured rrror: ", e, ": ", message
       writeStackTrace()
 
