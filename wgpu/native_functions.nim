@@ -61,7 +61,7 @@ proc wgpuDeviceDestroy*(device: Device) {.w.}
 proc wgpuDeviceGetAdapterInfo*(device: Device): AdapterInfo {.w.}
 proc wgpuDeviceGetFeatures*(device: Device, features: ptr SupportedFeatures) {.w.}
 proc wgpuDeviceGetLimits*(device: Device, limits: ptr Limits): Status {.w.}
-proc wgpuDeviceGetLostWGPUFuture*(device: Device): Future {.w.}
+proc wgpuDeviceGetLostWGPUFuture*(device: Device): WGPUFuture {.w.}
 proc wgpuDeviceGetQueue*(device: Device): QueuePtr {.w.}
 proc wgpuDeviceHasFeature*(device: Device, feature: FeatureName): Bool {.w.}
 proc wgpuDevicePopErrorScope*(device: Device, callbackInfo {.bycopy.}: PopErrorScopeCallbackInfo): WGPUFuture {.w.}
@@ -116,7 +116,7 @@ proc wgpuRenderPassEncoderSetPipeline*(renderPassEncoder: RenderPassEncoder, pip
 proc wgpuRenderPassEncoderSetScissorRect*(renderPassEncoder: RenderPassEncoder, x, y, width, height: uint32) {.w.}
 proc wgpuRenderPassEncoderSetStencilReference*(renderPassEncoder: RenderPassEncoder, reference: uint32) {.w.}
 proc wgpuRenderPassEncoderSetVertexBuffer*(renderPassEncoder: RenderPassEncoder, slot: uint32, buffer: Buffer, offset, size: uint64) {.w.}
-proc wgpuRenderPassEncoderSetViewport*(renderPassEncoder: RenderPassEncoder, x, y, width, height, minDepth, maxDepth: float) {.w.}
+proc wgpuRenderPassEncoderSetViewport*(renderPassEncoder: RenderPassEncoder, x, y, width, height, minDepth, maxDepth: cfloat) {.w.}
 proc wgpuRenderPipelineGetBindGroupLayout*(renderPipeline: RenderPipeline, groupIndex: uint32): BindGroupLayoutPtr {.w.}
 proc wgpuRenderPipelineSetLabel*(renderPipeline: RenderPipeline, label: StringView) {.w.}
 proc wgpuSamplerSetLabel*(sampler: Sampler, label: StringView) {.w.}

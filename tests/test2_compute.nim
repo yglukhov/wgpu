@@ -119,8 +119,8 @@ when defined(wasm):
   import wasmrt
 
   type
-    HTMLElement* = object of JSObj
-    Document* = object of HTMLElement
+    HTMLElement* {.externref.} = object of JSObject
+    Document* {.externref.} = object of HTMLElement
 
   proc document(): Document {.importwasmp.}
   proc write(d: Document, s: cstring) {.importwasmm.}

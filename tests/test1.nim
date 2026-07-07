@@ -174,35 +174,37 @@ proc renderFrame(d: Device, context: Context, textureView: TextureView) =
 when defined(wasm):
   import wasmrt
   type
-    HTMLElement* = object of JSObj
-    Document* = object of HTMLElement
-    HTMLCanvasElement* = object of HTMLElement
-    GPUCanvasContext* = object of JSObj
-    GPUTexture* = object of JSObj
+    HTMLElement* {.externref.} = object of JSObject
+    Document* {.externref.} = object of HTMLElement
+    HTMLCanvasElement* {.externref.} = object of HTMLElement
+    GPUCanvasContext* {.externref.} = object of JSObject
 
   proc document(): Document {.importwasmp.}
   proc write(d: Document, s: cstring) {.importwasmm.}
   proc createElement(d: Document, t: cstring): HTMLElement {.importwasmm.}
   proc body(d: Document): HTMLElement {.importwasmp.}
   proc append(p, c: HTMLElement) {.importwasmm.}
-  proc getContext(c: HTMLCanvasElement, s: cstring): JSObj {.importwasmm.}
+  proc getContext(c: HTMLCanvasElement, s: cstring): JSObject {.importwasmm.}
   proc `width=`(c: HTMLElement, v: int) {.importwasmp.}
   proc `height=`(c: HTMLElement, v: int) {.importwasmp.}
 
-  proc configure(c: GPUCanvasContext, d: Device, fmt: TextureFormat) {.importwasmraw: """
+  proc configureI(c: GPUCanvasContext, d: JSObject, fmt: uint32) {.importwasmraw: """
   $0.configure({device: $1, format: _nimwct[$2]})
   """}
+  proc configure(c: GPUCanvasContext, d: Device, fmt: TextureFormat) =
+    configureI(c, cast[JSRef](d.p), fmt.uint32)
 
-  proc getCurrentTexture(c: GPUCanvasContext): GPUTexture {.importwasmm.}
-  proc createView(t: GPUTexture): TextureView {.importwasmm.}
+  proc getCurrentTextureI(c: GPUCanvasContext): JSObject {.importwasmm: "getCurrentTexture".}
+  proc getCurrentTexture(c: GPUCanvasContext): Texture =
+    Texture(p: cast[TexturePtr](storeExternRef(c.getCurrentTextureI())))
 
   proc createCanvasContext(): GPUCanvasContext =
     let doc = document()
-    let canvas = doc.createElement("canvas").to(HTMLCanvasElement)
+    let canvas = HTMLCanvasElement(doc.createElement("canvas"))
     canvas.width = winWidth
     canvas.height = winHeight
     doc.body.append(canvas)
-    canvas.getContext("webgpu").to(GPUCanvasContext)
+    GPUCanvasContext(canvas.getContext("webgpu"))
 
   proc mainLoop(d: Device, format: TextureFormat) =
     let canvasContext = createCanvasContext()
